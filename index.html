@@ -10,6 +10,221 @@
 </head>
 <body>
 
+  <!-- LOADING OVERLAY -->
+  <div id="loadingOverlay" style="position:fixed;inset:0;background:#0f1117;z-index:9999;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+    <div style="width:48px;height:48px;border:4px solid #1e2535;border-top:4px solid #6366f1;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+    <div style="color:#8892a4;font-size:14px;font-family:Inter,sans-serif;" id="loadingMsg">Carregando dados...</div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="logo" style="display:flex;justify-content:center;align-items:center;padding:16px 20px 16px;">
+      <span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Sales<span style="color:#6366f1;">IQ</span></span>
+    </div>
+
+    <div class="nav-section">Menu</div>
+    <div class="nav-item active" onclick="showPage('dashboard',this)" title="Dashboard"><span class="icon">📊</span><span class="nav-label">Dashboard</span></div>
+    <div class="nav-item" onclick="showPage('vendas',this)" title="Vendas"><span class="icon">📦</span><span class="nav-label">Vendas</span></div>
+    <div class="nav-item" onclick="showPage('estoque',this)" title="Estoque"><span class="icon">🗄️</span><span class="nav-label">Estoque</span></div>
+    <div class="nav-item" onclick="showPage('insights',this)" title="Insights"><span class="icon">💡</span><span class="nav-label">Insights</span></div>
+    <div class="nav-item" onclick="showPage('rupturas',this)" title="Rupturas"><span class="icon">🚨</span><span class="nav-label">Rupturas</span></div>
+    <div class="nav-item" onclick="showPage('projections',this)" title="Projeções"><span class="icon">📈</span><span class="nav-label">Projeções</span></div>
+
+    <div class="sidebar-footer">SalesIQ v3.2</div>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="topbar">
+      <div class="search-wrap">
+        <span class="ico">🔍</span>
+        <input id="searchInput" oninput="filterTable()" placeholder="Buscar SKU ou produto...">
+      </div>
+      <select class="filter-select" id="anoFilter" onchange="filterTable()"><option value="">Todos os anos</option></select>
+      <select class="filter-select" id="mesFilter" onchange="filterTable()"><option value="">Todos os meses</option></select>
+      <select class="filter-select" id="curvaFilter" onchange="filterTable()">
+        <option value="">Todas as curvas</option>
+        <option value="A">Curva A</option>
+        <option value="B">Curva B</option>
+        <option value="C">Curva C</option>
+      </select>
+      <button onclick="toggleSidebar()" style="background:#1e2535;border:1px solid #2a3448;color:#8892a4;padding:9px 13px;border-radius:10px;cursor:pointer;font-size:16px;">☰</button>
+    </div>
+
+    <!-- DASHBOARD PAGE -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle" id="dashSubtitle">Carregando...</div>
+        </div>
+        <span style="font-size:12px;color:#4a5568;" id="dashCountLabel"></span>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value" id="kpiReceita">—</div><span class="kpi-badge neutral" id="kpiReceitaBadge"></span></div>
+        <div class="kpi-card"><div class="kpi-label">Pedidos</div><div class="kpi-value" id="kpiPedidos">—</div><span class="kpi-badge neutral" id="kpiPedidosBadge"></span></div>
+        <div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value" id="kpiTicket">—</div><span class="kpi-badge neutral" id="kpiTicketBadge"></span></div>
+        <div class="kpi-card"><div class="kpi-label">SKUs Ativos</div><div class="kpi-value" id="kpiSkus">—</div><span class="kpi-badge neutral" id="kpiSkusBadge"></span></div>
+      </div>
+      <div class="charts-row">
+        <div class="card">
+          <div class="card-title">Receita Mensal</div>
+          <div class="card-subtitle">Evolução ao longo do período</div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <button class="chart-type-btn active" id="btnLine" onclick="switchChart('line')">Linha</button>
+            <button class="chart-type-btn" id="btnBar" onclick="switchChart('bar')">Barras</button>
+          </div>
+          <canvas id="mainChart" height="80"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Curva ABC</div>
+          <div class="card-subtitle">Distribuição de receita</div>
+          <canvas id="abcChart" height="120"></canvas>
+        </div>
+      </div>
+      <div class="bottom-grid">
+        <div class="card" style="padding:0;">
+          <div style="padding:14px 18px;border-bottom:1px solid #1e2535;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;font-weight:600;color:#c0c9d9;">Top Produtos</span>
+            <span style="font-size:12px;color:#4a5568;" id="tableCountLabel"></span>
+          </div>
+          <div id="pagTop" class="vpag"></div>
+          <div class="prod-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:32px;">#</th>
+                  <th onclick="sortTable('SKU')" class="sortable">SKU <span id="sort-SKU" class="sort-ico">↕</span></th>
+                  <th onclick="sortTable('produto')" class="sortable">Produto <span id="sort-produto" class="sort-ico">↕</span></th>
+                  <th onclick="sortTable('curva')" class="sortable">Curva <span id="sort-curva" class="sort-ico">↕</span></th>
+                  <th onclick="sortTable('receita')" class="sortable">Receita <span id="sort-receita" class="sort-ico">↕</span></th>
+                  <th onclick="sortTable('qtd')" class="sortable">Qtd <span id="sort-qtd" class="sort-ico">↕</span></th>
+                  <th onclick="sortTable('vd')" class="sortable">Venda/Dia <span id="sort-vd" class="sort-ico">↕</span></th>
+                  <th onclick="sortTable('cobertura')" class="sortable">Cobertura <span id="sort-cobertura" class="sort-ico">↕</span></th>
+                  <th onclick="sortTable('estoque')" class="sortable">Estoque <span id="sort-estoque" class="sort-ico">↕</span></th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="prodBody"></tbody>
+            </table>
+          </div>
+          <div id="pagBot" class="vpag"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Alertas de Estoque</div>
+          <div class="card-subtitle" id="alertSubtitle"></div>
+          <div class="alert-list" id="alertList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA VENDAS -->
+    <div id="page-vendas" class="page">
+      <div class="page-header">
+        <div><div class="page-title">Vendas por Produto</div><div class="page-subtitle" id="vendasSubtitle">Carregando...</div></div>
+        <span style="font-size:12px;color:#4a5568;" id="vendasCountLabel"></span>
+      </div>
+      <div class="vendas-kpi-row">
+        <div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value" id="vKpiReceita">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Qtd Vendida</div><div class="kpi-value" id="vKpiQtd">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value" id="vKpiTicket">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">SKUs Ativos</div><div class="kpi-value" id="vKpiSkus">—</div></div>
+      </div>
+      <div class="vendas-filter-bar">
+        <div style="position:relative;flex:1;min-width:180px;">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:14px;">🔍</span>
+          <input class="vf-input" style="width:100%;" id="vSearch" oninput="applyVendasFilters()" placeholder="Buscar SKU ou produto...">
+        </div>
+        <select class="vf-select" id="vAno" onchange="applyVendasFilters()"><option value="">Todos os anos</option></select>
+        <select class="vf-select" id="vMes" onchange="applyVendasFilters()"><option value="">Todos os meses</option></select>
+        <select class="vf-select" id="vCurva" onchange="applyVendasFilters()">
+          <option value="">Todas as curvas</option>
+          <option value="A">Curva A</option>
+          <option value="B">Curva B</option>
+          <option value="C">Curva C</option>
+        </select>
+      </div>
+      <div class="vendas-chart-row">
+        <div class="card">
+          <div class="card-title">Receita Mensal</div>
+          <div class="card-subtitle">Evolução ao longo dos meses</div>
+          <canvas id="vendasLineChart" height="90"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Distribuição por Curva</div>
+          <div class="card-subtitle">Participação na receita</div>
+          <canvas id="vendasCurvaChart" height="130"></canvas>
+        </div>
+      </div>
+      <div class="card" style="padding:0;">
+        <div style="padding:14px 18px;border-bottom:1px solid #1e2535;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:13px;font-weight:600;color:#c0c9d9;">Produtos</span>
+          <span style="font-size:12px;color:#4a5568;" id="vendasTableCount"></span>
+        </div>
+        <div id="vendasPagTop" class="vpag"></div>
+        <div class="vendas-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:32px;">#</th>
+                <th onclick="sortVendas('SKU')" class="sortable">SKU <span id="vsort-SKU" class="sort-ico">↕</span></th>
+                <th onclick="sortVendas('produto')" class="sortable">Produto <span id="vsort-produto" class="sort-ico">↕</span></th>
+                <th onclick="sortVendas('curva')" class="sortable">Curva <span id="vsort-curva" class="sort-ico">↕</span></th>
+                <th onclick="sortVendas('qtd')" class="sortable">Qtd Vendida <span id="vsort-qtd" class="sort-ico">↕</span></th>
+                <th onclick="sortVendas('receita')" class="sortable">Receita <span id="vsort-receita" class="sort-ico">↕</span></th>
+                <th onclick="sortVendas('ticket')" class="sortable">Ticket Médio <span id="vsort-ticket" class="sort-ico">↕</span></th>
+                <th onclick="sortVendas('vd')" class="sortable">Venda/Dia <span id="vsort-vd" class="sort-ico">↕</span></th>
+                <th onclick="sortVendas('cobertura')" class="sortable">Cobertura <span id="vsort-cobertura" class="sort-ico">↕</span></th>
+                <th onclick="sortVendas('estoque')" class="sortable">Estoque <span id="vsort-estoque" class="sort-ico">↕</span></th>
+              </tr>
+            </thead>
+            <tbody id="vendasBody"></tbody>
+          </table>
+        </div>
+        <div id="vendasPagBot" class="vpag"></div>
+      </div>
+    </div>
+
+    <!-- PÁGINA ESTOQUE -->
+    <div id="page-estoque" class="page">
+      <div class="page-header"><div><div class="page-title">Estoque</div><div class="page-subtitle">Em breve</div></div></div>
+      <div class="card" style="padding:60px;text-align:center;color:#4a5568;">Página em construção</div>
+    </div>
+
+    <!-- PÁGINA INSIGHTS -->
+    <div id="page-insights" class="page">
+      <div class="page-header"><div><div class="page-title">Insights</div><div class="page-subtitle">Análise inteligente de produtos</div></div></div>
+      <div id="insightsContent"></div>
+    </div>
+
+    <!-- PÁGINA RUPTURAS -->
+    <div id="page-rupturas" class="page">
+      <div class="page-header">
+        <div><div class="page-title">Rupturas &amp; Riscos</div><div class="page-subtitle" id="ruptSubtitle"></div></div>
+        <span style="font-size:12px;color:#4a5568;" id="ruptCountLabel"></span>
+      </div>
+      <div id="ruptContent"></div>
+    </div>
+
+    <!-- PÁGINA PROJEÇÕES -->
+    <div id="page-projections" class="page">
+      <div class="page-header"><div><div class="page-title">Projeções</div><div class="page-subtitle">Em breve</div></div></div>
+      <div class="card" style="padding:60px;text-align:center;color:#4a5568;">Página em construção</div>
+    </div>
+  </main>
+
+  <!-- MODAL SKU -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal" id="modalBox">
+      <span class="modal-close" onclick="closeModal()">✕</span>
+      <div class="modal-sku" id="modalSku"></div>
+      <div class="modal-name" id="modalName"></div>
+      <div class="modal-kpis" id="modalKpis"></div>
+      <div class="tabs" id="modalTabs"></div>
+      <div id="modalTabContent"></div>
+    </div>
+  </div>
+
   <!-- Scripts (ordem importa) -->
   <script src="js/config.js"></script>
   <script src="js/app.js"></script>

@@ -50,8 +50,18 @@ async function loadData(){
     ESTOQUE_DATA  = json.estoque     || [];
     KPIS_ESTOQUE  = json.kpisEstoque || {};
     RUPTURAS_DATA = json.ruptura     || [];
-    INSIGHTS_DATA = json.insights    || { alta:[], queda:[], parado:[], oportunidade:[] };
-    PROJ_DATA     = json.projecoes   || json.proj || [];
+
+    // Normaliza chaves de insights: aceita tanto topAlta/topQueda (API)
+    // quanto alta/queda (legado)
+    const ins = json.insights || {};
+    INSIGHTS_DATA = {
+      alta:        ins.alta        || ins.topAlta        || [],
+      queda:       ins.queda       || ins.topQueda       || [],
+      parado:      ins.parado      || ins.estoqueParado  || [],
+      oportunidade:ins.oportunidade|| ins.curvaARuptura  || []
+    };
+
+    PROJ_DATA = json.projecoes || json.proj || [];
 
     const anos  =[...new Set(Object.keys(DATA.vendasPorMes||{}).map(k=>k.split('-')[0]))].sort();
     const meses =[...new Set(Object.keys(DATA.vendasPorMes||{}).map(k=>k.split('-')[1]))].sort();
@@ -64,6 +74,7 @@ async function loadData(){
     initDashboard();
     initVendas();
     renderInsights();
+    renderEstoque();
     if(RUPTURAS_DATA.length)renderRupturas(RUPTURAS_DATA);
 
   }catch(err){
@@ -75,10 +86,13 @@ async function loadData(){
 
 // ---- KPIs DASHBOARD ----
 function initDashboard(){
+  // kpis.skus: usa skuRuptura como fallback para total de SKUs no estoque,
+  // mas o correto é o total de produtos
+  const totalSkus = DATA.kpis.skus !== undefined ? DATA.kpis.skus : DATA.produtos.length;
   document.getElementById('kpiReceita').textContent   =fmt(DATA.kpis.receita);
   document.getElementById('kpiPedidos').textContent   =fmtN(DATA.kpis.pedidos);
   document.getElementById('kpiTicket').textContent    =fmt(DATA.kpis.ticket);
-  document.getElementById('kpiSkus').textContent      =fmtN(DATA.kpis.skus);
+  document.getElementById('kpiSkus').textContent      =fmtN(totalSkus);
 
   const setBadge=(id,val,suffix)=>{
     const el=document.getElementById(id);
@@ -87,7 +101,8 @@ function initDashboard(){
     el.textContent=(n>=0?'+':'')+n.toFixed(1)+(suffix||'%');
     el.className='kpi-badge '+(n>=0?'up':'down');
   };
-  setBadge('kpiReceitaBadge', DATA.kpis.receitaVar);
+  // crescimento como variação de receita; pedidosVar e ticketVar opcionais
+  setBadge('kpiReceitaBadge', DATA.kpis.receitaVar !== undefined ? DATA.kpis.receitaVar : DATA.kpis.crescimento);
   setBadge('kpiPedidosBadge', DATA.kpis.pedidosVar);
   setBadge('kpiTicketBadge',  DATA.kpis.ticketVar);
   setBadge('kpiSkusBadge',    DATA.kpis.skusVar);
@@ -200,8 +215,6 @@ function initDashboard(){
   // ---- FILTER ----
   window.filterTable=()=>{
     const q=(document.getElementById('searchInput').value||'').toLowerCase();
-    const ano=document.getElementById('anoFilter').value;
-    const mes=document.getElementById('mesFilter').value;
     const curva=document.getElementById('curvaFilter').value;
     current=allProds.filter(p=>{
       if(q&&!(p.SKU||'').toLowerCase().includes(q)&&!(p.produto||'').toLowerCase().includes(q))return false;
@@ -212,18 +225,18 @@ function initDashboard(){
     render(0);
   };
 
-  // ---- ALERTS ----
+  // ---- ALERTS — usa RUPTURAS_DATA que agora inclui status/cobertura/sugestao/vd ----
   const alerts=RUPTURAS_DATA.slice(0,10);
   document.getElementById('alertSubtitle').textContent=RUPTURAS_DATA.length+' SKUs em alerta';
   document.getElementById('alertList').innerHTML=alerts.map(r=>{
-    const isRupt=r.status==='RUPTURA';
+    const isRupt=(r.status==='RUPTURA')||(r.estoque||0)<=0;
     return`<div class="alert-item${isRupt?'':' warn'}">
       <div class="alert-header">
         <span class="alert-sku${isRupt?'':' warn'}">${r.SKU}</span>
         <span style="font-size:10px;color:${isRupt?'#f87171':'#fbbf24'}">${isRupt?'⚠ RUPTURA':'⚠ RISCO'}</span>
       </div>
       <div class="alert-name">${r.produto||''}</div>
-      <div class="alert-msg">Estoque: ${r.estoque||0} un | Cobertura: ${r.cobertura||0} dias | Sugestão: ${r.sugestao||0} un</div>
+      <div class="alert-msg">Estoque: ${fmtN(r.estoque||0)} un | Cobertura: ${r.cobertura!=null?r.cobertura:'—'} dias | Sugestão: ${fmtN(r.sugestao||0)} un</div>
     </div>`;
   }).join('');
 
@@ -266,7 +279,7 @@ function renderInsights(){
 function renderRupturas(data){
   const label=document.getElementById('ruptCountLabel');
   if(label)label.textContent=data.length+' SKUs';
-  const totalRupt=data.filter(r=>r.status==='RUPTURA').length;
+  const totalRupt=data.filter(r=>(r.status==='RUPTURA')||(r.estoque||0)<=0).length;
   const totalRisco=data.filter(r=>r.status==='RISCO').length;
   const sub=document.getElementById('ruptSubtitle');
   if(sub)sub.textContent=`${totalRupt} rupturas | ${totalRisco} em risco`;
@@ -285,7 +298,7 @@ function renderRupturas(data){
             <th>Status</th><th>Estoque</th><th>Venda/Dia</th><th>Cobertura</th><th>Sugestão</th><th>Receita</th>
           </tr></thead>
           <tbody>${data.map((r,i)=>{
-            const isRupt=r.status==='RUPTURA';
+            const isRupt=(r.status==='RUPTURA')||(r.estoque||0)<=0;
             return`<tr onclick="openModal('${r.SKU}')">
               <td class="rank">${i+1}</td>
               <td><span class="sku-tag">${r.SKU}</span></td>
@@ -294,11 +307,67 @@ function renderRupturas(data){
               <td>${isRupt?'<span class="badge-ruptura">⚠ RUPTURA</span>':'<span class="badge-risco">⚠ RISCO</span>'}</td>
               <td>${fmtN(r.estoque||0)}</td>
               <td>${(r.vd||0).toFixed(2)}/dia</td>
-              <td>${r.cobertura||0} dias</td>
+              <td>${r.cobertura!=null?r.cobertura:'—'} dias</td>
               <td style="color:#6366f1;font-weight:600;">${fmtN(r.sugestao||0)} un</td>
               <td style="color:#34d399;">${'R$ '+((r.receita||0).toLocaleString('pt-BR',{minimumFractionDigits:2}))}</td>
             </tr>`;
           }).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ---- ESTOQUE RENDER ----
+function renderEstoque(){
+  const page = document.getElementById('page-estoque');
+  if (!page) return;
+
+  const kpis = KPIS_ESTOQUE;
+  const data = ESTOQUE_DATA;
+
+  const curvaSpan = c => c === 'A'
+    ? `<span class="kpi-badge" style="font-size:10px;background:#0d2618;color:#34d399;">A</span>`
+    : c === 'B'
+      ? `<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>`
+      : `<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>`;
+
+  const statusBadgeEst = s => s === 'RUPTURA'
+    ? '<span class="badge-ruptura">⚠ Ruptura</span>'
+    : s === 'RISCO'
+      ? '<span class="badge-risco">⚠ Risco</span>'
+      : '<span class="badge-ok">✓ OK</span>';
+
+  page.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Estoque</div><div class="page-subtitle">Visão geral do inventário</div></div>
+      <span style="font-size:12px;color:#4a5568;">${data.length} SKUs</span>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:20px;">
+      <div class="kpi-card"><div class="kpi-label">Total SKUs</div><div class="kpi-value">${fmtN(kpis.total||0)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Rupturas</div><div class="kpi-value" style="color:#f87171;">${fmtN(kpis.ruptura||0)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Em Risco</div><div class="kpi-value" style="color:#fbbf24;">${fmtN(kpis.risco||0)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">OK</div><div class="kpi-value" style="color:#34d399;">${fmtN(kpis.ok||0)}</div></div>
+    </div>
+    <div class="card" style="padding:0;">
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>#</th><th>SKU</th><th>Descrição</th><th>Curva</th>
+            <th>Estoque</th><th>Status</th><th>Venda 30d</th><th>Sugestão</th><th>Receita</th>
+          </tr></thead>
+          <tbody>${data.map((r, i) => `
+            <tr onclick="openModal('${r.SKU}')">
+              <td class="rank">${i + 1}</td>
+              <td><span class="sku-tag">${r.SKU}</span></td>
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.desc||''}">${r.desc || '-'}</td>
+              <td>${curvaSpan(r.curva || 'C')}</td>
+              <td>${fmtN(r.estoque || 0)}</td>
+              <td>${statusBadgeEst(r.status || 'OK')}</td>
+              <td>${fmtN(r.qtd30 || 0)} un</td>
+              <td style="color:#6366f1;font-weight:600;">${fmtN(r.sugestao || 0)} un</td>
+              <td style="color:#34d399;">${fmt(r.receita || 0)}</td>
+            </tr>`).join('')}
+          </tbody>
         </table>
       </div>
     </div>`;
@@ -319,11 +388,6 @@ function openModal(sku){
     ['Cobertura',(p.cobertura||0)+' dias'],
   ].map(([l,v])=>`<div class="modal-kpi"><div class="modal-kpi-label">${l}</div><div class="modal-kpi-value">${v}</div></div>`).join('');
 
-  const months=DATA.monthly.map(m=>{
-    const[y,mo]=m.mes.split('-');
-    const ns=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    return ns[parseInt(mo)]+'/'+y.slice(2);
-  });
   const skuMonthly=(DATA.vendasPorMes?Object.entries(DATA.vendasPorMes).map(([k,arr])=>{
     const item=arr.find(x=>x.SKU===sku);
     return{mes:k,receita:item?item.receita:0,qtd:item?item.qtd:0};

@@ -31,25 +31,13 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <div class="nav-item" onclick="showPage('rupturas',this)" title="Rupturas"><span class="icon">🚨</span><span class="nav-label">Rupturas</span></div>
 <div class="nav-item" onclick="showPage('projections',this)" title="Projeções"><span class="icon">📈</span><span class="nav-label">Projeções</span></div>
 
-<div class="sidebar-footer">SalesIQ v3.3</div>
+<div class="sidebar-footer">
+<button onclick="toggleSidebar()" title="Recolher menu" style="background:none;border:none;color:#4a5568;cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;" onmouseover="this.style.color='#8892a4'" onmouseout="this.style.color='#4a5568'">☰</button>
+<span style="font-size:11px;color:#4a5568;">SalesIQ v3.3</span>
+</div>
 </aside>
 
 <main class="main" id="main">
-<div class="topbar">
-<div class="search-wrap">
-<span class="ico">🔍</span>
-<input id="searchInput" oninput="filterTable()" placeholder="Buscar SKU ou produto...">
-</div>
-<select class="filter-select" id="anoFilter" onchange="filterTable()"><option value="">Todos os anos</option></select>
-<select class="filter-select" id="mesFilter" onchange="filterTable()"><option value="">Todos os meses</option></select>
-<select class="filter-select" id="curvaFilter" onchange="filterTable()">
-<option value="">Todas as curvas</option>
-<option value="A">Curva A</option>
-<option value="B">Curva B</option>
-<option value="C">Curva C</option>
-</select>
-<button onclick="toggleSidebar()" style="background:#1e2535;border:1px solid #2a3448;color:#8892a4;padding:9px 13px;border-radius:10px;cursor:pointer;font-size:16px;">☰</button>
-</div>
 
 <!-- DASHBOARD PAGE -->
 <div id="page-dashboard" class="page active">
@@ -135,8 +123,6 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:14px;">🔍</span>
 <input class="vf-input" style="width:100%;" id="vSearch" oninput="applyVendasFilters()" placeholder="Buscar SKU ou produto...">
 </div>
-<select class="vf-select" id="vAno" onchange="applyVendasFilters()"><option value="">Todos os anos</option></select>
-<select class="vf-select" id="vMes" onchange="applyVendasFilters()"><option value="">Todos os meses</option></select>
 <select class="vf-select" id="vCurva" onchange="applyVendasFilters()">
 <option value="">Todas as curvas</option>
 <option value="A">Curva A</option>

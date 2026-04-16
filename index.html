@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SalesIQ</title>
+<title>BotSV</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
@@ -221,6 +221,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
             <th>Estoque</th>
             <th>Status</th>
             <th>Venda 30d</th>
+            <th>Tendência</th>
             <th>Sugestão</th>
             <th>Receita</th>
           </tr>
@@ -271,10 +272,10 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <script src="js/app.js"></script>
 <script src="js/vendas.js"></script>
 
-<!-- Estoque: paginação e KPIs corrigidos -->
+<!-- Estoque: paginação, KPIs e tendência -->
 <script>
 (function(){
-  const PS = 100; // SKUs por página
+  const PS = 100;
   let _estPage = 0;
 
   function fmtN(v){ return (v||0).toLocaleString('pt-BR'); }
@@ -290,6 +291,38 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
     if(s==='RUPTURA') return '<span class="badge-ruptura">⚠ Ruptura</span>';
     if(s==='RISCO')   return '<span class="badge-risco">⚠ Risco</span>';
     return '<span class="badge-ok">✓ OK</span>';
+  }
+
+  // ── Coluna de Tendência ──────────────────────────────────
+  // kpi_trend vem do Apps Script: positivo = alta, negativo = queda, 0 = estável
+  function trendCell(trend){
+    const t = Number(trend) || 0;
+    const abs = Math.abs(t);
+
+    // Cor e seta
+    let color, arrow, label;
+    if(t > 10){
+      color = '#34d399'; arrow = '▲'; label = '+'+t+'%';
+    } else if(t < -10){
+      color = '#f87171'; arrow = '▼'; label = t+'%';
+    } else {
+      color = '#8892a4'; arrow = '➔'; label = (t >= 0 ? '+' : '')+t+'%';
+    }
+
+    // Barra proporcional: max 100px para 100%
+    const barWidth = Math.min(abs, 100);
+    const barColor = t > 10 ? '#34d399' : t < -10 ? '#f87171' : '#4a5568';
+
+    return `
+      <div style="display:flex;flex-direction:column;gap:3px;min-width:90px;">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="color:${color};font-size:13px;font-weight:700;">${arrow}</span>
+          <span style="color:${color};font-size:12px;font-weight:600;">${label}</span>
+        </div>
+        <div style="background:#1e2535;border-radius:3px;height:4px;width:100px;">
+          <div style="background:${barColor};border-radius:3px;height:4px;width:${barWidth}px;transition:width 0.3s;"></div>
+        </div>
+      </div>`;
   }
 
   function buildEstoquePag(total, pg){
@@ -330,6 +363,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
         <td>${fmtN(r.estoque||0)}</td>
         <td>${statusBadgeEst(r.status||'OK')}</td>
         <td>${fmtN(r.qtd30||0)} un</td>
+        <td>${trendCell(r.kpi_trend||0)}</td>
         <td style="color:#6366f1;font-weight:600;">${fmtN(r.sugestao||0)} un</td>
         <td style="color:#34d399;">${fmt(r.receita||0)}</td>
       </tr>`).join('');
@@ -340,12 +374,11 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
   }
 
   function renderEstoqueKpis(){
-    // Recalcula direto do ESTOQUE_DATA para garantir precisão
     const data = ESTOQUE_DATA || [];
-    const total    = data.length;
-    const ruptura  = data.filter(r => r.status === 'RUPTURA').length;
-    const risco    = data.filter(r => r.status === 'RISCO').length;
-    const ok       = data.filter(r => r.status === 'OK').length;
+    const total   = data.length;
+    const ruptura = data.filter(r => r.status === 'RUPTURA').length;
+    const risco   = data.filter(r => r.status === 'RISCO').length;
+    const ok      = data.filter(r => r.status === 'OK').length;
 
     document.getElementById('estKpiTotal').textContent   = fmtN(total);
     document.getElementById('estKpiRuptura').textContent = fmtN(ruptura);
@@ -353,14 +386,11 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
     document.getElementById('estKpiOk').textContent      = fmtN(ok);
   }
 
-  // Expõe globalmente para paginação funcionar nos botões inline
   window._goEstPage = function(pg){
     renderEstoquePage(pg);
-    document.getElementById('page-estoque').scrollTop = 0;
     window.scrollTo(0,0);
   };
 
-  // Sobrescreve renderEstoque do app.js com versão corrigida
   window.renderEstoque = function(){
     renderEstoqueKpis();
     renderEstoquePage(0);

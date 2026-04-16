@@ -1,1 +1,1 @@
-PLACEHOLDER_VENDAS
+// vendas.js — placeholder

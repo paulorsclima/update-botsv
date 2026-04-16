@@ -1,1 +1,1 @@
-PLACEHOLDER_APP
+// app.js — placeholder

@@ -209,6 +209,36 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
       <span style="font-size:13px;font-weight:600;color:#c0c9d9;">Produtos em Estoque</span>
       <span style="font-size:12px;color:#4a5568;" id="estoqueTableCount"></span>
     </div>
+
+    <!-- ── BARRA DE FILTROS (NOVO) ── -->
+    <div style="padding:10px 18px;border-bottom:1px solid #1e2535;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <div style="position:relative;flex:1;min-width:180px;">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:14px;">🔍</span>
+        <input class="vf-input" style="width:100%;padding-left:36px;" id="estSearch" oninput="window._filtroEstoque()" placeholder="Buscar SKU ou descrição...">
+      </div>
+      <select class="vf-select" id="estFiltroStatus" onchange="window._filtroEstoque()">
+        <option value="">Todos os status</option>
+        <option value="RUPTURA">Ruptura</option>
+        <option value="RISCO">Risco</option>
+        <option value="OK">OK</option>
+      </select>
+      <select class="vf-select" id="estFiltroCurva" onchange="window._filtroEstoque()">
+        <option value="">Todas as curvas</option>
+        <option value="A">Curva A</option>
+        <option value="B">Curva B</option>
+        <option value="C">Curva C</option>
+      </select>
+      <select class="vf-select" id="estFiltroOrdem" onchange="window._filtroEstoque()">
+        <option value="receita">Ordenar: Receita ↓</option>
+        <option value="az">Ordenar: A → Z</option>
+        <option value="za">Ordenar: Z → A</option>
+        <option value="estoque_asc">Estoque ↑</option>
+        <option value="estoque_desc">Estoque ↓</option>
+        <option value="cobertura_asc">Cobertura ↑</option>
+      </select>
+    </div>
+    <!-- ── FIM BARRA DE FILTROS ── -->
+
     <div id="estoquePagTop" class="vpag"></div>
     <div style="overflow-x:auto;">
       <table>
@@ -272,11 +302,12 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <script src="js/app.js"></script>
 <script src="js/vendas.js"></script>
 
-<!-- Estoque: paginação, KPIs e tendência -->
+<!-- Estoque: paginação, KPIs, tendência e filtros -->
 <script>
 (function(){
   const PS = 100;
   let _estPage = 0;
+  let _estDadosFiltrados = []; // (NOVO) guarda resultado do filtro
 
   function fmtN(v){ return (v||0).toLocaleString('pt-BR'); }
   function fmt(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -293,13 +324,9 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
     return '<span class="badge-ok">✓ OK</span>';
   }
 
-  // ── Coluna de Tendência ──────────────────────────────────
-  // kpi_trend vem do Apps Script: positivo = alta, negativo = queda, 0 = estável
   function trendCell(trend){
     const t = Number(trend) || 0;
     const abs = Math.abs(t);
-
-    // Cor e seta
     let color, arrow, label;
     if(t > 10){
       color = '#34d399'; arrow = '▲'; label = '+'+t+'%';
@@ -308,11 +335,8 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
     } else {
       color = '#8892a4'; arrow = '➔'; label = (t >= 0 ? '+' : '')+t+'%';
     }
-
-    // Barra proporcional: max 100px para 100%
     const barWidth = Math.min(abs, 100);
     const barColor = t > 10 ? '#34d399' : t < -10 ? '#f87171' : '#4a5568';
-
     return `
       <div style="display:flex;flex-direction:column;gap:3px;min-width:90px;">
         <div style="display:flex;align-items:center;gap:5px;">
@@ -324,6 +348,37 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
         </div>
       </div>`;
   }
+
+  // ── LÓGICA DE FILTRO (NOVO) ──────────────────────────────
+  window._filtroEstoque = function(){
+    const q      = (document.getElementById('estSearch').value || '').toLowerCase();
+    const status = document.getElementById('estFiltroStatus').value;
+    const curva  = document.getElementById('estFiltroCurva').value;
+    const ordem  = document.getElementById('estFiltroOrdem').value;
+
+    let data = (ESTOQUE_DATA || []).filter(r => {
+      if(q && !(r.SKU||'').toLowerCase().includes(q) && !(r.desc||'').toLowerCase().includes(q)) return false;
+      if(status && r.status !== status) return false;
+      if(curva  && r.curva  !== curva)  return false;
+      return true;
+    });
+
+    if(ordem === 'az')
+      data.sort((a,b) => (a.desc||'').localeCompare(b.desc||'', 'pt-BR'));
+    else if(ordem === 'za')
+      data.sort((a,b) => (b.desc||'').localeCompare(a.desc||'', 'pt-BR'));
+    else if(ordem === 'estoque_asc')
+      data.sort((a,b) => (a.estoque||0) - (b.estoque||0));
+    else if(ordem === 'estoque_desc')
+      data.sort((a,b) => (b.estoque||0) - (a.estoque||0));
+    else if(ordem === 'cobertura_asc')
+      data.sort((a,b) => (a.cobertura||0) - (b.cobertura||0));
+    // 'receita' mantém ordem original do ESTOQUE_DATA
+
+    _estDadosFiltrados = data;
+    renderEstoquePage(0);
+  };
+  // ── FIM FILTRO ───────────────────────────────────────────
 
   function buildEstoquePag(total, pg){
     const totalPages = Math.ceil(total / PS);
@@ -351,7 +406,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 
   function renderEstoquePage(pg){
     _estPage = pg || 0;
-    const data = ESTOQUE_DATA || [];
+    const data = _estDadosFiltrados; // (ALTERADO) usa dados filtrados
     const slice = data.slice(_estPage*PS, (_estPage+1)*PS);
 
     document.getElementById('estoqueBody').innerHTML = slice.map((r, i) => `
@@ -392,6 +447,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
   };
 
   window.renderEstoque = function(){
+    _estDadosFiltrados = ESTOQUE_DATA || []; // (NOVO) inicializa com todos os dados
     renderEstoqueKpis();
     renderEstoquePage(0);
   };

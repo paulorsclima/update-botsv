@@ -1,345 +1,231 @@
-// ============================================================
-//  SalesIQ — Apps Script (Google Sheets Web App)
-//  Extensões → Apps Script → cole este código → Implantar
-// ============================================================
-
-
-function doGet(e) {
-  try {
-    const json = buildJSON();
-    return ContentService
-      .createTextOutput(JSON.stringify(json))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch(err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ erro: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────
-function buildJSON() {
-  const ss      = SpreadsheetApp.getActiveSpreadsheet();
-  const wsV     = ss.getSheetByName("VENDAS");
-  const wsE     = ss.getSheetByName("ESTOQUE");
-
-
-  const vendas  = wsV.getDataRange().getValues();
-  const estoque = wsE.getDataRange().getValues();
-
-
-  // ── Cabeçalhos ──────────────────────────────────────────
-  const hV = vendas[0];   // linha 1 = header
-  const hE = estoque[0];
-
-
-  const iData    = hV.indexOf("Data");
-  const iSKU     = hV.indexOf("SKU");
-  const iProd    = hV.indexOf("Produto");
-  const iQtd     = hV.indexOf("Quantidade");
-  const iTotal   = hV.indexOf("Total");
-  const iConta   = hV.indexOf("Conta");
-  const iVd      = hV.indexOf("Venda/Dia (30d)");
-  const iV30     = hV.indexOf("Vendas Por 30 Dias");
-  const iV60     = hV.indexOf("Vendas Por 60 Dias");
-  const iV90     = hV.indexOf("Vendas Por 90 Dias");
-
-
-  const iESKU    = hE.indexOf("SKU");
-  const iEQtd    = hE.indexOf("Quantidade");
-
-
-  // ── Estoque: mapa SKU → quantidade ──────────────────────
-  const estoqueMap = {};
-  for (let i = 1; i < estoque.length; i++) {
-    const sku = String(estoque[i][iESKU]).trim();
-    if (sku) estoqueMap[sku] = Number(estoque[i][iEQtd]) || 0;
-  }
-
-
-  // ── Processar linhas de VENDAS ───────────────────────────
-  // Agrupadores
-  const porSKU    = {};   // { SKU: { produto, qtd, receita, vd, v30, v60, v90 } }
-  const porMes    = {};   // { "YYYY-MM": { receita, pedidos } }
-  const porMesSKU = {};   // { "YYYY-MM": { SKU: { qtd, receita, produto } } }
-
-
-  for (let i = 1; i < vendas.length; i++) {
-    const row   = vendas[i];
-    const sku   = String(row[iSKU]).trim();
-    const prod  = String(row[iProd]).trim();
-    const qtd   = Number(row[iQtd])   || 0;
-    const total = Number(row[iTotal]) || 0;
-    const vd    = Number(row[iVd])    || 0;
-    const v30   = Number(row[iV30])   || 0;
-    const v60   = Number(row[iV60])   || 0;
-    const v90   = Number(row[iV90])   || 0;
-
-
-    // Data → "YYYY-MM"
-    let mes = "";
-    if (row[iData]) {
-      const d = new Date(row[iData]);
-      mes = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
-    }
-
-
-    if (!sku) continue;
-
-
-    // Agrupa por SKU
-    if (!porSKU[sku]) {
-      porSKU[sku] = { produto: prod, qtd: 0, receita: 0, vd: 0, v30: 0, v60: 0, v90: 0, linhas: 0 };
-    }
-    porSKU[sku].qtd     += qtd;
-    porSKU[sku].receita += total;
-    porSKU[sku].vd      += vd;
-    porSKU[sku].v30     += v30;
-    porSKU[sku].v60     += v60;
-    porSKU[sku].v90     += v90;
-    porSKU[sku].linhas  += 1;
-
-
-    // Agrupa por mês
-    if (mes) {
-      if (!porMes[mes]) porMes[mes] = { receita: 0, pedidos: 0 };
-      porMes[mes].receita  += total;
-      porMes[mes].pedidos  += 1;
-
-
-      if (!porMesSKU[mes])       porMesSKU[mes] = {};
-      if (!porMesSKU[mes][sku])  porMesSKU[mes][sku] = { qtd: 0, receita: 0, produto: prod };
-      porMesSKU[mes][sku].qtd     += qtd;
-      porMesSKU[mes][sku].receita += total;
-    }
-  }
-
-
-  // ── Meses ordenados ─────────────────────────────────────
-  const mesesOrdenados = Object.keys(porMes).sort();
-  const mesAtual  = mesesOrdenados[mesesOrdenados.length - 1] || "";
-  const mesAnterior = mesesOrdenados[mesesOrdenados.length - 2] || "";
-
-
-  // ── Receita total ────────────────────────────────────────
-  const receitaTotal  = Object.values(porMes).reduce((s, m) => s + m.receita, 0);
-  const pedidosTotal  = Object.values(porMes).reduce((s, m) => s + m.pedidos, 0);
-  const ticketMedio   = pedidosTotal > 0 ? receitaTotal / pedidosTotal : 0;
-
-
-  // Crescimento mês atual vs anterior
-  const recAtual  = porMes[mesAtual]    ? porMes[mesAtual].receita    : 0;
-  const recAnt    = porMes[mesAnterior] ? porMes[mesAnterior].receita : 0;
-  const crescimento = recAnt > 0 ? Math.round(((recAtual - recAnt) / recAnt) * 1000) / 10 : 0;
-
-
-  // ── Curva ABC ────────────────────────────────────────────
-  const skus = Object.keys(porSKU);
-  const receitaOrdenada = skus
-    .map(sku => ({ sku, receita: porSKU[sku].receita }))
-    .sort((a, b) => b.receita - a.receita);
-
-
-  const receitaGlobal = receitaOrdenada.reduce((s, x) => s + x.receita, 0);
-  let acum = 0;
-  const curvaMap = {};
-  for (const item of receitaOrdenada) {
-    acum += item.receita;
-    const pct = acum / receitaGlobal;
-    curvaMap[item.sku] = pct <= 0.70 ? "A" : pct <= 0.90 ? "B" : "C";
-  }
-
-
-  // ── Montar lista de produtos ─────────────────────────────
-  const produtos = skus.map(sku => {
-    const d      = porSKU[sku];
-    const est    = estoqueMap[sku] !== undefined ? estoqueMap[sku] : null;
-    const vdMed  = d.linhas > 0 ? d.vd / d.linhas : 0;
-    const vdFinal = Math.round(vdMed * 100) / 100;
-    const cobertura = est !== null && vdFinal > 0
-      ? Math.round((est / vdFinal) * 10) / 10
-      : est === 0 ? 0 : null;
-    const ruptura = est !== null && est <= 0;
-    const status  = est === null ? "SEM_EST"
-                  : est <= 0    ? "RUPTURA"
-                  : cobertura !== null && cobertura < 30 ? "RISCO" : "OK";
-    const sugestao = est !== null && vdFinal > 0
-      ? Math.max(0, Math.round(vdFinal * 45 - est))
-      : 0;
-    const curva = curvaMap[sku] || "C";
-
-
-    // Tendência: v30 do último mês vs 30d anteriores
-    // Usando v60 - v30 como proxy dos 30d anteriores
-    const v30avg  = d.v30 / d.linhas;
-    const v60avg  = d.v60 / d.linhas;
-    const v30ant  = v60avg - v30avg;
-    let trend = 0;
-    if (v30ant > 0) {
-      trend = Math.round(((v30avg - v30ant) / v30ant) * 100);
-    } else if (v30avg > 0) {
-      trend = 100;
-    }
-
-
-    return {
-      SKU: sku,
-      produto: d.produto,
-      qtd: d.qtd,
-      receita: Math.round(d.receita * 100) / 100,
-      estoque: est,
-      vd: vdFinal,
-      cobertura: cobertura,
-      ruptura: ruptura,
-      curva: curva,
-      sugestao: sugestao,
-      kpi_trend: trend,
-      v30: Math.round(v30avg * 30),
-      v60: Math.round(v30avg * 60),
-      v90: Math.round(v30avg * 90)
-    };
-  });
-
-
-  // Ordenar por receita desc
-  produtos.sort((a, b) => b.receita - a.receita);
-
-
-  // ── Top 10 ───────────────────────────────────────────────
-  const top10 = produtos.slice(0, 10).map(p => ({
-    SKU: p.SKU, produto: p.produto, receita: p.receita, estoque: p.estoque
-  }));
-
-
-  // ── Rupturas (estoque = 0 com vendas) ───────────────────
-  const rupturas = produtos
-    .filter(p => p.ruptura && p.qtd > 0)
-    .map(p => ({ SKU: p.SKU, produto: p.produto, receita: p.receita, estoque: p.estoque }));
-
-
-  // ── KPIs Estoque ─────────────────────────────────────────
-  const todosEstoque = Object.keys(estoqueMap);
-  const totalSKUs   = todosEstoque.length;
-  const qtdRuptura  = todosEstoque.filter(s => estoqueMap[s] <= 0).length;
-  const prodMap     = {};
-  produtos.forEach(p => prodMap[p.SKU] = p);
-  const qtdRisco    = todosEstoque.filter(s => {
-    const p = prodMap[s];
-    return p && p.status === "RISCO";
-  }).length;
-  const qtdOK       = totalSKUs - qtdRuptura - qtdRisco;
-  const qtdCurvaA   = produtos.filter(p => p.curva === "A").length;
-
-
-  // ── ESTOQUE_DATA (lista completa para aba Estoque) ───────
-  const estoqueData = todosEstoque.map(sku => {
-    const p   = prodMap[sku];
-    const est = estoqueMap[sku];
-    const vd  = p ? p.vd : 0;
-    const cob = p ? p.cobertura : null;
-    const status = est <= 0 ? "RUPTURA" : (cob !== null && cob < 30) ? "RISCO" : "OK";
-    const sug  = p ? p.sugestao : 0;
-    const curva = p ? p.curva : "C";
-    const trend = p ? p.kpi_trend : 0;
-    const qtd30 = p ? p.v30 : 0;
-    const rec   = p ? p.receita : 0;
-    return {
-      SKU: sku,
-      desc: p ? p.produto : sku,
-      estoque: est,
-      status: status,
-      sugestao: sug,
-      curva: curva,
-      kpi_trend: trend,
-      qtd30: qtd30,
-      receita: rec
-    };
-  });
-
-
-  // ── vendasPorMes ─────────────────────────────────────────
-  const vendasPorMes = {};
-  for (const mes of mesesOrdenados) {
-    vendasPorMes[mes] = Object.entries(porMesSKU[mes] || {}).map(([sku, d]) => ({
-      SKU: sku, produto: d.produto, qtd: d.qtd,
-      receita: Math.round(d.receita * 100) / 100
-    }));
-  }
-
-
-  // ── Insights ─────────────────────────────────────────────
-  // Top alta e queda: mes atual vs anterior
-  const insightsAlta  = [];
-  const insightsQueda = [];
-  const estParado     = [];
-  const curvaARupt    = [];
-
-
-  if (mesAtual && mesAnterior) {
-    const skusMesAtual = porMesSKU[mesAtual]    || {};
-    const skusMesAnt   = porMesSKU[mesAnterior] || {};
-    const todosSkus    = new Set([...Object.keys(skusMesAtual), ...Object.keys(skusMesAnt)]);
-
-
-    const variacoes = [];
-    todosSkus.forEach(sku => {
-      const qAtual = skusMesAtual[sku] ? skusMesAtual[sku].qtd : 0;
-      const qAnt   = skusMesAnt[sku]   ? skusMesAnt[sku].qtd   : 0;
-      if (qAnt > 0 && qAtual > 0) {
-        const pct = Math.round(((qAtual - qAnt) / qAnt) * 100);
-        variacoes.push({ sku, pct, qAtual, curva: curvaMap[sku] || "C",
-          produto: (skusMesAtual[sku] || skusMesAnt[sku]).produto });
-      }
-    });
-    variacoes.sort((a, b) => b.pct - a.pct);
-    variacoes.slice(0, 10).forEach(x =>
-      insightsAlta.push({ SKU: x.sku, produto: x.produto, qtdAtual: x.qAtual, crescimento: x.pct, curva: x.curva })
-    );
-    variacoes.slice(-10).reverse().forEach(x =>
-      insightsQueda.push({ SKU: x.sku, produto: x.produto, qtdAtual: x.qAtual, queda: Math.abs(x.pct), curva: x.curva })
-    );
-  }
-
-
-  produtos.forEach(p => {
-    if (p.cobertura !== null && p.cobertura > 90 && p.estoque > 0)
-      estParado.push({ SKU: p.SKU, produto: p.produto, estoque: p.estoque, cobertura: p.cobertura, curva: p.curva });
-    if (p.curva === "A" && p.ruptura)
-      curvaARupt.push({ SKU: p.SKU, produto: p.produto, receita: p.receita, sugestao: p.sugestao, curva: p.curva });
-  });
-
-
-  // ── Montar JSON final ────────────────────────────────────
-  return {
-    kpis: {
-      receita:     Math.round(receitaTotal * 100) / 100,
-      pedidos:     pedidosTotal,
-      ticket:      Math.round(ticketMedio * 100) / 100,
-      skuRuptura:  qtdRuptura,
-      crescimento: crescimento
-    },
-    monthly: mesesOrdenados.map(m => ({
-      mes: m,
-      receita: Math.round(porMes[m].receita * 100) / 100
-    })),
-    produtos:    produtos,
-    top10:       top10,
-    ruptura:     rupturas,
-    vendasPorMes: vendasPorMes,
-    estoque:     estoqueData,
-    kpisEstoque: {
-      total:   totalSKUs,
-      ruptura: qtdRuptura,
-      risco:   qtdRisco,
-      ok:      qtdOK,
-      curvaA:  qtdCurvaA
-    },
-    insights: {
-      topAlta:       insightsAlta,
-      topQueda:      insightsQueda,
-      estoqueParado: estParado,
-      curvaARuptura: curvaARupt
-    }
-  };
-}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SalesIQ</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay" style="position:fixed;inset:0;background:#0f1117;z-index:9999;
+display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+<div style="width:48px;height:48px;border:4px solid #1e2535;border-top:4px solid #6366f1;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+<div style="color:#8892a4;font-size:14px;font-family:Inter,sans-serif;" id="loadingMsg">Carregando dados...</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</div>
+
+<aside class="sidebar" id="sidebar">
+<div class="logo" style="display:flex;justify-content:center;align-items:center;padding:16px 20px 16px;">
+<span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Sales<span style="color:#6366f1;">IQ</span></span>
+</div>
+
+<div class="nav-section">Menu</div>
+<div class="nav-item active" onclick="showPage('dashboard',this)" title="Dashboard"><span class="icon">📊</span><span class="nav-label">Dashboard</span></div>
+<div class="nav-item" onclick="showPage('vendas',this)" title="Vendas"><span class="icon">📦</span><span class="nav-label">Vendas</span></div>
+<div class="nav-item" onclick="showPage('estoque',this)" title="Estoque"><span class="icon">🗄️</span><span class="nav-label">Estoque</span></div>
+<div class="nav-item" onclick="showPage('insights',this)" title="Insights"><span class="icon">💡</span><span class="nav-label">Insights</span></div>
+<div class="nav-item" onclick="showPage('rupturas',this)" title="Rupturas"><span class="icon">🚨</span><span class="nav-label">Rupturas</span></div>
+<div class="nav-item" onclick="showPage('projections',this)" title="Projeções"><span class="icon">📈</span><span class="nav-label">Projeções</span></div>
+
+<div class="sidebar-footer">SalesIQ v3.3</div>
+</aside>
+
+<main class="main" id="main">
+<div class="topbar">
+<div class="search-wrap">
+<span class="ico">🔍</span>
+<input id="searchInput" oninput="filterTable()" placeholder="Buscar SKU ou produto...">
+</div>
+<select class="filter-select" id="anoFilter" onchange="filterTable()"><option value="">Todos os anos</option></select>
+<select class="filter-select" id="mesFilter" onchange="filterTable()"><option value="">Todos os meses</option></select>
+<select class="filter-select" id="curvaFilter" onchange="filterTable()">
+<option value="">Todas as curvas</option>
+<option value="A">Curva A</option>
+<option value="B">Curva B</option>
+<option value="C">Curva C</option>
+</select>
+<button onclick="toggleSidebar()" style="background:#1e2535;border:1px solid #2a3448;color:#8892a4;padding:9px 13px;border-radius:10px;cursor:pointer;font-size:16px;">☰</button>
+</div>
+
+<!-- DASHBOARD PAGE -->
+<div id="page-dashboard" class="page active">
+<div class="page-header">
+<div>
+<div class="page-title">Dashboard</div>
+<div class="page-subtitle" id="dashSubtitle">Carregando...</div>
+</div>
+<span style="font-size:12px;color:#4a5568;" id="dashCountLabel"></span>
+</div>
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value" id="kpiReceita">—</div><span class="kpi-badge neutral" id="kpiReceitaBadge"></span></div>
+<div class="kpi-card"><div class="kpi-label">Pedidos</div><div class="kpi-value" id="kpiPedidos">—</div><span class="kpi-badge neutral" id="kpiPedidosBadge"></span></div>
+<div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value" id="kpiTicket">—</div><span class="kpi-badge neutral" id="kpiTicketBadge"></span></div>
+<div class="kpi-card"><div class="kpi-label">SKUs Ativos</div><div class="kpi-value" id="kpiSkus">—</div><span class="kpi-badge neutral" id="kpiSkusBadge"></span></div>
+</div>
+<div class="charts-row">
+<div class="card">
+<div class="card-title">Receita Mensal</div>
+<div class="card-subtitle">Evolução ao longo do período</div>
+<div style="display:flex;gap:6px;margin-bottom:12px;">
+<button class="chart-type-btn active" id="btnLine" onclick="switchChart('line')">Linha</button>
+<button class="chart-type-btn" id="btnBar" onclick="switchChart('bar')">Barras</button>
+</div>
+<canvas id="mainChart" height="80"></canvas>
+</div>
+<div class="card">
+<div class="card-title">Curva ABC</div>
+<div class="card-subtitle">Distribuição de receita</div>
+<canvas id="abcChart" height="120"></canvas>
+</div>
+</div>
+<div class="bottom-grid">
+<div class="card" style="padding:0;">
+<div style="padding:14px 18px;border-bottom:1px solid #1e2535;display:flex;justify-content:space-between;align-items:center;">
+<span style="font-size:13px;font-weight:600;color:#c0c9d9;">Top Produtos</span>
+<span style="font-size:12px;color:#4a5568;" id="tableCountLabel"></span>
+</div>
+<div id="pagTop" class="vpag"></div>
+<div class="prod-table-wrap">
+<table>
+<thead>
+<tr>
+<th style="width:32px;">#</th>
+<th onclick="sortTable('SKU')" class="sortable">SKU <span id="sort-SKU" class="sort-ico">↕</span></th>
+<th onclick="sortTable('produto')" class="sortable">Produto <span id="sort-produto" class="sort-ico">↕</span></th>
+<th onclick="sortTable('curva')" class="sortable">Curva <span id="sort-curva" class="sort-ico">↕</span></th>
+<th onclick="sortTable('receita')" class="sortable">Receita <span id="sort-receita" class="sort-ico">↕</span></th>
+<th onclick="sortTable('qtd')" class="sortable">Qtd <span id="sort-qtd" class="sort-ico">↕</span></th>
+<th onclick="sortTable('vd')" class="sortable">Venda/Dia <span id="sort-vd" class="sort-ico">↕</span></th>
+<th onclick="sortTable('cobertura')" class="sortable">Cobertura <span id="sort-cobertura" class="sort-ico">↕</span></th>
+<th onclick="sortTable('estoque')" class="sortable">Estoque <span id="sort-estoque" class="sort-ico">↕</span></th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody id="prodBody"></tbody>
+</table>
+</div>
+<div id="pagBot" class="vpag"></div>
+</div>
+<div class="card">
+<div class="card-title">Alertas de Estoque</div>
+<div class="card-subtitle" id="alertSubtitle"></div>
+<div class="alert-list" id="alertList"></div>
+</div>
+</div>
+</div>
+
+<!-- PÁGINA VENDAS -->
+<div id="page-vendas" class="page">
+<div class="page-header">
+<div><div class="page-title">Vendas por Produto</div><div class="page-subtitle" id="vendasSubtitle">Carregando...</div></div>
+<span style="font-size:12px;color:#4a5568;" id="vendasCountLabel"></span>
+</div>
+<div class="vendas-kpi-row">
+<div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value" id="vKpiReceita">—</div></div>
+<div class="kpi-card"><div class="kpi-label">Qtd Vendida</div><div class="kpi-value" id="vKpiQtd">—</div></div>
+<div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value" id="vKpiTicket">—</div></div>
+<div class="kpi-card"><div class="kpi-label">SKUs Ativos</div><div class="kpi-value" id="vKpiSkus">—</div></div>
+</div>
+<div class="vendas-filter-bar">
+<div style="position:relative;flex:1;min-width:180px;">
+<span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:14px;">🔍</span>
+<input class="vf-input" style="width:100%;" id="vSearch" oninput="applyVendasFilters()" placeholder="Buscar SKU ou produto...">
+</div>
+<select class="vf-select" id="vAno" onchange="applyVendasFilters()"><option value="">Todos os anos</option></select>
+<select class="vf-select" id="vMes" onchange="applyVendasFilters()"><option value="">Todos os meses</option></select>
+<select class="vf-select" id="vCurva" onchange="applyVendasFilters()">
+<option value="">Todas as curvas</option>
+<option value="A">Curva A</option>
+<option value="B">Curva B</option>
+<option value="C">Curva C</option>
+</select>
+</div>
+<div class="vendas-chart-row">
+<div class="card">
+<div class="card-title">Receita Mensal</div>
+<div class="card-subtitle">Evolução ao longo dos meses</div>
+<canvas id="vendasLineChart" height="90"></canvas>
+</div>
+<div class="card">
+<div class="card-title">Distribuição por Curva</div>
+<div class="card-subtitle">Participação na receita</div>
+<canvas id="vendasCurvaChart" height="130"></canvas>
+</div>
+</div>
+<div class="card" style="padding:0;">
+<div style="padding:14px 18px;border-bottom:1px solid #1e2535;display:flex;justify-content:space-between;align-items:center;">
+<span style="font-size:13px;font-weight:600;color:#c0c9d9;">Produtos</span>
+<span style="font-size:12px;color:#4a5568;" id="vendasTableCount"></span>
+</div>
+<div id="vendasPagTop" class="vpag"></div>
+<div class="vendas-table-wrap">
+<table>
+<thead>
+<tr>
+<th style="width:32px;">#</th>
+<th onclick="sortVendas('SKU')" class="sortable">SKU <span id="vsort-SKU" class="sort-ico">↕</span></th>
+<th onclick="sortVendas('produto')" class="sortable">Produto <span id="vsort-produto" class="sort-ico">↕</span></th>
+<th onclick="sortVendas('curva')" class="sortable">Curva <span id="vsort-curva" class="sort-ico">↕</span></th>
+<th onclick="sortVendas('qtd')" class="sortable">Qtd Vendida <span id="vsort-qtd" class="sort-ico">↕</span></th>
+<th onclick="sortVendas('receita')" class="sortable">Receita <span id="vsort-receita" class="sort-ico">↕</span></th>
+<th onclick="sortVendas('ticket')" class="sortable">Ticket Médio <span id="vsort-ticket" class="sort-ico">↕</span></th>
+<th onclick="sortVendas('vd')" class="sortable">Venda/Dia <span id="vsort-vd" class="sort-ico">↕</span></th>
+<th onclick="sortVendas('cobertura')" class="sortable">Cobertura <span id="vsort-cobertura" class="sort-ico">↕</span></th>
+<th onclick="sortVendas('estoque')" class="sortable">Estoque <span id="vsort-estoque" class="sort-ico">↕</span></th>
+</tr>
+</thead>
+<tbody id="vendasBody"></tbody>
+</table>
+</div>
+<div id="vendasPagBot" class="vpag"></div>
+</div>
+</div>
+
+<!-- PÁGINA ESTOQUE -->
+<div id="page-estoque" class="page">
+</div>
+
+<!-- PÁGINA INSIGHTS -->
+<div id="page-insights" class="page">
+<div class="page-header"><div><div class="page-title">Insights</div><div class="page-subtitle">Análise inteligente de produtos</div></div></div>
+<div id="insightsContent"></div>
+</div>
+
+<!-- PÁGINA RUPTURAS -->
+<div id="page-rupturas" class="page">
+<div class="page-header">
+<div><div class="page-title">Rupturas &amp; Riscos</div><div class="page-subtitle" id="ruptSubtitle"></div></div>
+<span style="font-size:12px;color:#4a5568;" id="ruptCountLabel"></span>
+</div>
+<div id="ruptContent"></div>
+</div>
+
+<!-- PÁGINA PROJEÇÕES -->
+<div id="page-projections" class="page">
+<div class="page-header"><div><div class="page-title">Projeções</div><div class="page-subtitle">Em breve</div></div></div>
+<div class="card" style="padding:60px;text-align:center;color:#4a5568;">Página em construção</div>
+</div>
+</main>
+
+<!-- MODAL SKU -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+<div class="modal" id="modalBox">
+<span class="modal-close" onclick="closeModal()">✕</span>
+<div class="modal-sku" id="modalSku"></div>
+<div class="modal-name" id="modalName"></div>
+<div class="modal-kpis" id="modalKpis"></div>
+<div class="tabs" id="modalTabs"></div>
+<div id="modalTabContent"></div>
+</div>
+</div>
+
+<!-- Scripts (ordem importa) -->
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/vendas.js"></script>
+</body>
+</html>

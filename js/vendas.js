@@ -114,25 +114,36 @@ function initVendas() {
   function renderVendas(pg) {
     curPage = pg || 0;
     const slice = current.slice(curPage * PS, (curPage + 1) * PS);
+
     const curvaSpan = c => c === 'A'
       ? `<span class="kpi-badge" style="font-size:10px;background:#0d2618;color:#34d399;">A</span>`
       : c === 'B'
         ? `<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>`
         : `<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>`;
+
     const ticket = p => p.qtd > 0 ? fmt(p.receita / p.qtd) : '—';
-    document.getElementById('vendasBody').innerHTML = slice.map((p, i) => `
-      <tr onclick="openModal('${p.SKU}')">
-        <td class="rank">${curPage * PS + i + 1}</td>
-        <td><span class="sku-tag">${p.SKU}</span></td>
-        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.produto || ''}">${p.produto || '-'}</td>
-        <td>${curvaSpan(p.curva || 'C')}</td>
-        <td>${fmtN(p.qtd || 0)}</td>
-        <td style="color:#34d399;font-weight:600;">${fmt(p.receita || 0)}</td>
-        <td>${ticket(p)}</td>
-        <td>${(p.vd || 0).toFixed(2)}/dia</td>
-        <td>${(p.cobertura || 0)} dias</td>
-        <td>${fmtN(p.estoque || 0)}</td>
-      </tr>`).join('');
+
+    // ── ALTERADO: map agora usa arrow function com corpo para calcular trend
+    document.getElementById('vendasBody').innerHTML = slice.map((p, i) => {
+      const trend = (p.kpi_trend != null && p.kpi_trend !== '')
+        ? Number(p.kpi_trend)
+        : window.calcTrend(p.qtd30, p.qtd60, p.qtd90);
+      return `
+        <tr onclick="openModal('${p.SKU}')">
+          <td class="rank">${curPage * PS + i + 1}</td>
+          <td><span class="sku-tag">${p.SKU}</span></td>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.produto || ''}">${p.produto || '-'}</td>
+          <td>${curvaSpan(p.curva || 'C')}</td>
+          <td>${fmtN(p.qtd || 0)}</td>
+          <td style="color:#34d399;font-weight:600;">${fmt(p.receita || 0)}</td>
+          <td>${ticket(p)}</td>
+          <td>${(p.vd || 0).toFixed(2)}/dia</td>
+          <td>${(p.cobertura || 0)} dias</td>
+          <td>${fmtN(p.estoque || 0)}</td>
+          <td>${window.trendCell(trend)}</td>
+        </tr>`;
+    }).join('');
+
     document.getElementById('vendasTableCount').textContent = current.length + ' produtos';
     window._renderVendas = renderVendas;
     const fn = `(function(p){window._renderVendas(p);})`;
@@ -173,7 +184,16 @@ function initVendas() {
         (DATA.vendasPorMes[k] || []).forEach(x => {
           if (!skuMap[x.SKU]) {
             const base = DATA.produtos.find(p => p.SKU === x.SKU) || {};
-            skuMap[x.SKU] = { ...base, receita: 0, qtd: 0 };
+            // ── ALTERADO: preserva campos de tendência ao montar objeto filtrado
+            skuMap[x.SKU] = {
+              ...base,
+              receita: 0,
+              qtd: 0,
+              qtd30:     base.qtd30     || 0,
+              qtd60:     base.qtd60     || 0,
+              qtd90:     base.qtd90     || 0,
+              kpi_trend: base.kpi_trend ?? null
+            };
           }
           skuMap[x.SKU].receita += x.receita || 0;
           skuMap[x.SKU].qtd    += x.qtd    || 0;

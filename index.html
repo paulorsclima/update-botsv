@@ -33,7 +33,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 
 <div class="sidebar-footer">
 <button onclick="toggleSidebar()" title="Recolher menu" style="background:none;border:none;color:#4a5568;cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;" onmouseover="this.style.color='#8892a4'" onmouseout="this.style.color='#4a5568'">☰</button>
-<span style="font-size:11px;color:#4a5568;">SalesBot v3.3</span>
+<span style="font-size:11px;color:#4a5568;">SalesIQ v3.3</span>
 </div>
 </aside>
 
@@ -164,6 +164,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <th onclick="sortVendas('vd')" class="sortable">Venda/Dia <span id="vsort-vd" class="sort-ico">↕</span></th>
 <th onclick="sortVendas('cobertura')" class="sortable">Cobertura <span id="vsort-cobertura" class="sort-ico">↕</span></th>
 <th onclick="sortVendas('estoque')" class="sortable">Estoque <span id="vsort-estoque" class="sort-ico">↕</span></th>
+<th>Tendência</th>
 </tr>
 </thead>
 <tbody id="vendasBody"></tbody>
@@ -210,7 +211,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
       <span style="font-size:12px;color:#4a5568;" id="estoqueTableCount"></span>
     </div>
 
-    <!-- ── BARRA DE FILTROS (NOVO) ── -->
+    <!-- BARRA DE FILTROS -->
     <div style="padding:10px 18px;border-bottom:1px solid #1e2535;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <div style="position:relative;flex:1;min-width:180px;">
         <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:14px;">🔍</span>
@@ -237,7 +238,6 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
         <option value="cobertura_asc">Cobertura ↑</option>
       </select>
     </div>
-    <!-- ── FIM BARRA DE FILTROS ── -->
 
     <div id="estoquePagTop" class="vpag"></div>
     <div style="overflow-x:auto;">
@@ -302,12 +302,41 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <script src="js/app.js"></script>
 <script src="js/vendas.js"></script>
 
+<!-- Tendência compartilhada: Estoque + Vendas -->
+<script>
+// Função global de tendência — usada por Estoque e por vendas.js
+window.trendCell = function(trend){
+  const t = Number(trend) || 0;
+  const abs = Math.abs(t);
+  let color, arrow, label;
+  if(t > 10){
+    color = '#34d399'; arrow = '▲'; label = '+'+t+'%';
+  } else if(t < -10){
+    color = '#f87171'; arrow = '▼'; label = t+'%';
+  } else {
+    color = '#8892a4'; arrow = '➔'; label = (t >= 0 ? '+' : '')+t+'%';
+  }
+  const barWidth = Math.min(abs, 100);
+  const barColor = t > 10 ? '#34d399' : t < -10 ? '#f87171' : '#4a5568';
+  return `
+    <div style="display:flex;flex-direction:column;gap:3px;min-width:90px;">
+      <div style="display:flex;align-items:center;gap:5px;">
+        <span style="color:${color};font-size:13px;font-weight:700;">${arrow}</span>
+        <span style="color:${color};font-size:12px;font-weight:600;">${label}</span>
+      </div>
+      <div style="background:#1e2535;border-radius:3px;height:4px;width:100px;">
+        <div style="background:${barColor};border-radius:3px;height:4px;width:${barWidth}px;transition:width 0.3s;"></div>
+      </div>
+    </div>`;
+};
+</script>
+
 <!-- Estoque: paginação, KPIs, tendência e filtros -->
 <script>
 (function(){
   const PS = 100;
   let _estPage = 0;
-  let _estDadosFiltrados = []; // (NOVO) guarda resultado do filtro
+  let _estDadosFiltrados = [];
 
   function fmtN(v){ return (v||0).toLocaleString('pt-BR'); }
   function fmt(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -324,32 +353,6 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
     return '<span class="badge-ok">✓ OK</span>';
   }
 
-  function trendCell(trend){
-    const t = Number(trend) || 0;
-    const abs = Math.abs(t);
-    let color, arrow, label;
-    if(t > 10){
-      color = '#34d399'; arrow = '▲'; label = '+'+t+'%';
-    } else if(t < -10){
-      color = '#f87171'; arrow = '▼'; label = t+'%';
-    } else {
-      color = '#8892a4'; arrow = '➔'; label = (t >= 0 ? '+' : '')+t+'%';
-    }
-    const barWidth = Math.min(abs, 100);
-    const barColor = t > 10 ? '#34d399' : t < -10 ? '#f87171' : '#4a5568';
-    return `
-      <div style="display:flex;flex-direction:column;gap:3px;min-width:90px;">
-        <div style="display:flex;align-items:center;gap:5px;">
-          <span style="color:${color};font-size:13px;font-weight:700;">${arrow}</span>
-          <span style="color:${color};font-size:12px;font-weight:600;">${label}</span>
-        </div>
-        <div style="background:#1e2535;border-radius:3px;height:4px;width:100px;">
-          <div style="background:${barColor};border-radius:3px;height:4px;width:${barWidth}px;transition:width 0.3s;"></div>
-        </div>
-      </div>`;
-  }
-
-  // ── LÓGICA DE FILTRO (NOVO) ──────────────────────────────
   window._filtroEstoque = function(){
     const q      = (document.getElementById('estSearch').value || '').toLowerCase();
     const status = document.getElementById('estFiltroStatus').value;
@@ -373,12 +376,10 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
       data.sort((a,b) => (b.estoque||0) - (a.estoque||0));
     else if(ordem === 'cobertura_asc')
       data.sort((a,b) => (a.cobertura||0) - (b.cobertura||0));
-    // 'receita' mantém ordem original do ESTOQUE_DATA
 
     _estDadosFiltrados = data;
     renderEstoquePage(0);
   };
-  // ── FIM FILTRO ───────────────────────────────────────────
 
   function buildEstoquePag(total, pg){
     const totalPages = Math.ceil(total / PS);
@@ -406,7 +407,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 
   function renderEstoquePage(pg){
     _estPage = pg || 0;
-    const data = _estDadosFiltrados; // (ALTERADO) usa dados filtrados
+    const data = _estDadosFiltrados;
     const slice = data.slice(_estPage*PS, (_estPage+1)*PS);
 
     document.getElementById('estoqueBody').innerHTML = slice.map((r, i) => `
@@ -418,7 +419,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
         <td>${fmtN(r.estoque||0)}</td>
         <td>${statusBadgeEst(r.status||'OK')}</td>
         <td>${fmtN(r.qtd30||0)} un</td>
-        <td>${trendCell(r.kpi_trend||0)}</td>
+        <td>${window.trendCell(r.kpi_trend||0)}</td>
         <td style="color:#6366f1;font-weight:600;">${fmtN(r.sugestao||0)} un</td>
         <td style="color:#34d399;">${fmt(r.receita||0)}</td>
       </tr>`).join('');
@@ -447,7 +448,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
   };
 
   window.renderEstoque = function(){
-    _estDadosFiltrados = ESTOQUE_DATA || []; // (NOVO) inicializa com todos os dados
+    _estDadosFiltrados = ESTOQUE_DATA || [];
     renderEstoqueKpis();
     renderEstoquePage(0);
   };

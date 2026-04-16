@@ -6,14 +6,6 @@
 function initVendas() {
   const prods = DATA.produtos.slice();
 
-  // ── Preenche filtros de ano e mês
-  const anos  = [...new Set(Object.keys(DATA.vendasPorMes || {}).map(k => k.split('-')[0]))].sort();
-  const meses = [...new Set(Object.keys(DATA.vendasPorMes || {}).map(k => k.split('-')[1]))].sort();
-  const selAno = document.getElementById('vAno');
-  const selMes = document.getElementById('vMes');
-  if (selAno) anos.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; selAno.appendChild(o); });
-  if (selMes) meses.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; selMes.appendChild(o); });
-
   // ── Subtítulo
   const mesesOrdenados = Object.keys(DATA.vendasPorMes || {}).sort();
   if (mesesOrdenados.length) {
@@ -29,9 +21,9 @@ function initVendas() {
 
   // ── KPIs
   function updateVKpis(list) {
-    const rec   = list.reduce((s, p) => s + (p.receita || 0), 0);
-    const qtd   = list.reduce((s, p) => s + (p.qtd || 0), 0);
-    const tick  = list.length > 0 ? rec / list.length : 0;
+    const rec  = list.reduce((s, p) => s + (p.receita || 0), 0);
+    const qtd  = list.reduce((s, p) => s + (p.qtd || 0), 0);
+    const tick = list.length > 0 ? rec / list.length : 0;
     document.getElementById('vKpiReceita').textContent = fmt(rec);
     document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
     document.getElementById('vKpiTicket').textContent  = fmt(tick);
@@ -130,34 +122,12 @@ function initVendas() {
     renderVendas(0);
   };
 
-  // ── Filtros
+  // ── Filtros (sem ano/mês)
   window.applyVendasFilters = () => {
-    const q      = (document.getElementById('vSearch').value || '').toLowerCase();
-    const ano    = document.getElementById('vAno').value;
-    const mes    = document.getElementById('vMes').value;
-    const curva  = document.getElementById('vCurva').value;
+    const q     = (document.getElementById('vSearch') ? document.getElementById('vSearch').value : '').toLowerCase();
+    const curva = document.getElementById('vCurva') ? document.getElementById('vCurva').value : '';
 
-    // Se filtro por mês/ano: recalcula receita/qtd a partir de vendasPorMes
-    if (ano || mes) {
-      const chaves = Object.keys(DATA.vendasPorMes || {}).filter(k => {
-        const [y, m] = k.split('-');
-        if (ano && y !== ano) return false;
-        if (mes && m !== mes) return false;
-        return true;
-      });
-      const skuMap = {};
-      chaves.forEach(k => {
-        (DATA.vendasPorMes[k] || []).forEach(x => {
-          if (!skuMap[x.SKU]) skuMap[x.SKU] = { ...DATA.produtos.find(p => p.SKU === x.SKU) || {}, receita: 0, qtd: 0 };
-          skuMap[x.SKU].receita += x.receita || 0;
-          skuMap[x.SKU].qtd    += x.qtd    || 0;
-        });
-      });
-      current = Object.values(skuMap);
-    } else {
-      current = prods.slice();
-    }
-
+    current = prods.slice();
     if (q)     current = current.filter(p => (p.SKU || '').toLowerCase().includes(q) || (p.produto || '').toLowerCase().includes(q));
     if (curva) current = current.filter(p => p.curva === curva);
     current.sort((a, b) => compareVal(a, b, sortCol, sortDir));

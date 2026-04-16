@@ -5,13 +5,38 @@
 
 function initVendas() {
   const prods = DATA.produtos.slice();
+  const MESES_NOMES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // ── Popula filtros de ano e mês dinamicamente a partir dos dados da planilha
+  const todasChaves = Object.keys(DATA.vendasPorMes || {}).sort();
+  const anos  = [...new Set(todasChaves.map(k => k.split('-')[0]))].sort();
+  const meses = [...new Set(todasChaves.map(k => k.split('-')[1]))].sort();
+
+  const selAno = document.getElementById('vAno');
+  const selMes = document.getElementById('vMes');
+
+  if (selAno) {
+    selAno.innerHTML = '<option value="">Todos os anos</option>';
+    anos.forEach(a => {
+      const o = document.createElement('option');
+      o.value = a; o.textContent = a;
+      selAno.appendChild(o);
+    });
+  }
+  if (selMes) {
+    selMes.innerHTML = '<option value="">Todos os meses</option>';
+    meses.forEach(m => {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = MESES_NOMES[parseInt(m)] || m;
+      selMes.appendChild(o);
+    });
+  }
 
   // ── Subtítulo
-  const mesesOrdenados = Object.keys(DATA.vendasPorMes || {}).sort();
-  if (mesesOrdenados.length) {
-    const fmtM = m => { const [y, mo] = m.split('-'); const ns = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']; return ns[parseInt(mo)] + '/' + y; };
+  if (todasChaves.length) {
+    const fmtM = k => { const [y, mo] = k.split('-'); return MESES_NOMES[parseInt(mo)] + '/' + y; };
     const sub = document.getElementById('vendasSubtitle');
-    if (sub) sub.textContent = fmtM(mesesOrdenados[0]) + ' – ' + fmtM(mesesOrdenados[mesesOrdenados.length - 1]);
+    if (sub) sub.textContent = fmtM(todasChaves[0]) + ' – ' + fmtM(todasChaves[todasChaves.length - 1]);
   }
 
   // ── Estado
@@ -33,12 +58,18 @@ function initVendas() {
   // ── Gráfico linha
   let vendasLineChartInst = null;
   function buildVendasLineChart(list) {
-    const mesesOrd = Object.keys(DATA.vendasPorMes || {}).sort();
-    const ns = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const ano   = selAno ? selAno.value : '';
+    const mes   = selMes ? selMes.value : '';
+    const chaves = todasChaves.filter(k => {
+      const [y, m] = k.split('-');
+      if (ano && y !== ano) return false;
+      if (mes && m !== mes) return false;
+      return true;
+    });
     const skuSet = new Set(list.map(p => p.SKU));
-    const labels = mesesOrd.map(m => { const [y, mo] = m.split('-'); return ns[parseInt(mo)] + '/' + y.slice(2); });
-    const data   = mesesOrd.map(m => {
-      const arr = DATA.vendasPorMes[m] || [];
+    const labels = chaves.map(k => { const [y, mo] = k.split('-'); return MESES_NOMES[parseInt(mo)] + '/' + y.slice(2); });
+    const data   = chaves.map(k => {
+      const arr = DATA.vendasPorMes[k] || [];
       return arr.filter(x => skuSet.has(x.SKU)).reduce((s, x) => s + (x.receita || 0), 0);
     });
     if (vendasLineChartInst) vendasLineChartInst.destroy();
@@ -122,12 +153,37 @@ function initVendas() {
     renderVendas(0);
   };
 
-  // ── Filtros (sem ano/mês)
+  // ── Filtros combinados: busca + ano + mês + curva
   window.applyVendasFilters = () => {
-    const q     = (document.getElementById('vSearch') ? document.getElementById('vSearch').value : '').toLowerCase();
-    const curva = document.getElementById('vCurva') ? document.getElementById('vCurva').value : '';
+    const q     = (document.getElementById('vSearch')?.value || '').toLowerCase();
+    const ano   = document.getElementById('vAno')?.value   || '';
+    const mes   = document.getElementById('vMes')?.value   || '';
+    const curva = document.getElementById('vCurva')?.value || '';
 
-    current = prods.slice();
+    // Se filtro por período: recalcula receita/qtd a partir de vendasPorMes
+    if (ano || mes) {
+      const chaves = todasChaves.filter(k => {
+        const [y, m] = k.split('-');
+        if (ano && y !== ano) return false;
+        if (mes && m !== mes) return false;
+        return true;
+      });
+      const skuMap = {};
+      chaves.forEach(k => {
+        (DATA.vendasPorMes[k] || []).forEach(x => {
+          if (!skuMap[x.SKU]) {
+            const base = DATA.produtos.find(p => p.SKU === x.SKU) || {};
+            skuMap[x.SKU] = { ...base, receita: 0, qtd: 0 };
+          }
+          skuMap[x.SKU].receita += x.receita || 0;
+          skuMap[x.SKU].qtd    += x.qtd    || 0;
+        });
+      });
+      current = Object.values(skuMap);
+    } else {
+      current = prods.slice();
+    }
+
     if (q)     current = current.filter(p => (p.SKU || '').toLowerCase().includes(q) || (p.produto || '').toLowerCase().includes(q));
     if (curva) current = current.filter(p => p.curva === curva);
     current.sort((a, b) => compareVal(a, b, sortCol, sortDir));

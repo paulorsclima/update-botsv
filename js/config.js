@@ -3,7 +3,7 @@
 // Carregado PRIMEIRO pelos outros arquivos JS
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbwn8FDdXhWv3Hmu0m4GxUJ6LJHgUXoWm9oo0ugr2345QuYB92V4T35n7bVMzHGJww/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxvVUy78wqgglMPrVGrx_O5WbJgGy8ESggZAqvZzhQaGcVMQ5IE4Bxm5cThSsgmCvQ/exec";
 
 // Dados globais (preenchidos pelo loadData via API)
 let DATA          = null;

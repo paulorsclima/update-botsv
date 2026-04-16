@@ -123,6 +123,8 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:14px;">🔍</span>
 <input class="vf-input" style="width:100%;padding-left:36px;" id="vSearch" oninput="applyVendasFilters()" placeholder="Buscar SKU ou produto...">
 </div>
+<select class="vf-select" id="vAno" onchange="applyVendasFilters()"><option value="">Todos os anos</option></select>
+<select class="vf-select" id="vMes" onchange="applyVendasFilters()"><option value="">Todos os meses</option></select>
 <select class="vf-select" id="vCurva" onchange="applyVendasFilters()">
 <option value="">Todas as curvas</option>
 <option value="A">Curva A</option>

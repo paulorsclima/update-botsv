@@ -295,8 +295,10 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
       <span onclick="fecharModalExport()" style="font-size:20px;color:#4a5568;cursor:pointer;line-height:1;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#4a5568'">✕</span>
     </div>
 
-    <!-- Filtro de status + ações -->
+    <!-- Filtros: status + curva + busca + ações -->
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+
+      <!-- FILTRO STATUS -->
       <select id="exportFiltroStatus" onchange="renderExportList(0)" style="
         background:#0f1117;border:1px solid #1e2535;border-radius:8px;
         padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;
@@ -307,6 +309,18 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
         <option value="OK">OK</option>
       </select>
 
+      <!-- ✅ NOVO: FILTRO CURVA -->
+      <select id="exportFiltroCurva" onchange="renderExportList(0)" style="
+        background:#0f1117;border:1px solid #1e2535;border-radius:8px;
+        padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;
+      ">
+        <option value="">Todas as curvas</option>
+        <option value="A">Curva A</option>
+        <option value="B">Curva B</option>
+        <option value="C">Curva C</option>
+      </select>
+
+      <!-- BUSCA -->
       <div style="position:relative;flex:1;min-width:160px;">
         <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:13px;">🔍</span>
         <input id="exportBusca" oninput="renderExportList(0)" placeholder="Buscar SKU ou descrição..." style="
@@ -336,6 +350,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
             </th>
             <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:left;">SKU</th>
             <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:left;">Descrição</th>
+            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:center;">Curva</th>
             <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Estoque</th>
             <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Sugestão</th>
             <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Venda 30d</th>
@@ -424,39 +439,28 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 
 <!-- ═══════════════════════════════════════════════════════
      TENDÊNCIA GLOBAL — compartilhada por Estoque e Vendas
-     Lógica: prioriza 90d, fallback 60d, fallback 30d
-     kpi_trend vem do Apps Script como número inteiro (%)
      ═══════════════════════════════════════════════════════ -->
 <script>
-// Calcula tendência no frontend caso o Apps Script não envie kpi_trend
-// Use: window.calcTrend(qtd30, qtd60, qtd90)
 window.calcTrend = function(qtd30, qtd60, qtd90){
   const q30 = Number(qtd30) || 0;
   const q60 = Number(qtd60) || 0;
   const q90 = Number(qtd90) || 0;
-
-  // Janela 90d: compara últimos 30d vs média dos 60d anteriores
   if(q90 > 0){
-    const antes = (q90 - q30) / 2; // média dos dois blocos de 30d anteriores
+    const antes = (q90 - q30) / 2;
     if(antes === 0) return 0;
     return Math.round(((q30 - antes) / antes) * 100);
   }
-  // Fallback 60d: compara últimos 30d vs 30d anteriores
   if(q60 > 0){
     const antes = q60 - q30;
     if(antes === 0) return 0;
     return Math.round(((q30 - antes) / antes) * 100);
   }
-  // Sem dados suficientes
   return 0;
 };
 
-// Renderiza a célula visual de tendência (seta + barra %)
-// trend: número inteiro vindo de kpi_trend (Apps Script) ou calcTrend()
 window.trendCell = function(trend){
   const t = Number(trend) || 0;
   const abs = Math.abs(t);
-
   let color, arrow, label;
   if(t > 10){
     color = '#34d399'; arrow = '▲'; label = '+' + t + '%';
@@ -465,16 +469,11 @@ window.trendCell = function(trend){
   } else {
     color = '#8892a4'; arrow = '➔'; label = (t >= 0 ? '+' : '') + t + '%';
   }
-
-  // Barra em % relativo ao container — corrige o bug da barra invisível
   const barPct   = Math.min(abs, 100);
   const barColor = t > 10 ? '#34d399' : t < -10 ? '#f87171' : '#4a5568';
-
-  // Tooltip mostra a janela usada para o cálculo
   const tip = t !== 0
     ? `Variação de vendas: ${label} (base 90d ou 60d)`
     : 'Sem variação significativa';
-
   return `
     <div title="${tip}" style="display:flex;flex-direction:column;gap:4px;min-width:100px;max-width:130px;">
       <div style="display:flex;align-items:center;gap:5px;">
@@ -510,8 +509,6 @@ window.trendCell = function(trend){
     return '<span class="badge-ok">✓ OK</span>';
   }
 
-  // Resolve trend: usa kpi_trend do Apps Script se existir,
-  // senão calcula no frontend com qtd30/qtd60/qtd90
   function resolveTrend(r){
     if(r.kpi_trend !== undefined && r.kpi_trend !== null && r.kpi_trend !== ''){
       return Number(r.kpi_trend);
@@ -621,25 +618,27 @@ window.trendCell = function(trend){
 })();
 </script>
 
-  <!-- ═══════════════════════════════════════════════
-     LÓGICA DO MODAL DE EXPORTAÇÃO
-     ═══════════════════════════════════════════════ -->
+<!-- LÓGICA DO MODAL DE EXPORTAÇÃO -->
 <script>
 (function(){
-  const PS_EXP = 50; // itens por página dentro do modal
-  let _expDados    = [];  // lista filtrada exibida no modal
-  let _expSelecionados = new Set(); // SKUs selecionados (persiste entre páginas)
-  let _expPage     = 0;
+  const PS_EXP = 50;
+  let _expDados       = [];
+  let _expSelecionados = new Set();
+  let _expPage        = 0;
 
   function fmtN(v){ return (v||0).toLocaleString('pt-BR'); }
 
-  // Abre o modal e carrega os dados
+  function curvaSpanExp(c){
+    if(c==='A') return '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#0d2618;color:#34d399;">A</span>';
+    if(c==='B') return '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#1a2f0d;color:#84cc16;">B</span>';
+    return '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#1e2535;color:#8892a4;">C</span>';
+  }
+
   window.abrirModalExport = function(){
-    const overlay = document.getElementById('exportOverlay');
-    overlay.style.display = 'flex';
-    // Reseta filtros visuais mas mantém seleção
+    document.getElementById('exportOverlay').style.display = 'flex';
     document.getElementById('exportFiltroStatus').value = '';
-    document.getElementById('exportBusca').value = '';
+    document.getElementById('exportFiltroCurva').value  = '';
+    document.getElementById('exportBusca').value        = '';
     renderExportList(0);
   };
 
@@ -649,14 +648,15 @@ window.trendCell = function(trend){
     }
   };
 
-  // Renderiza a lista do modal com filtro + paginação
   window.renderExportList = function(pg){
     _expPage = pg || 0;
     const statusFiltro = document.getElementById('exportFiltroStatus').value;
+    const curvaFiltro  = document.getElementById('exportFiltroCurva').value;   // ✅ NOVO
     const busca = (document.getElementById('exportBusca').value || '').toLowerCase();
 
     _expDados = (ESTOQUE_DATA || []).filter(r => {
       if(statusFiltro && r.status !== statusFiltro) return false;
+      if(curvaFiltro  && r.curva  !== curvaFiltro)  return false;              // ✅ NOVO
       if(busca && !(r.SKU||'').toLowerCase().includes(busca) && !(r.desc||'').toLowerCase().includes(busca)) return false;
       return true;
     });
@@ -664,12 +664,11 @@ window.trendCell = function(trend){
     const total = _expDados.length;
     const slice = _expDados.slice(_expPage * PS_EXP, (_expPage + 1) * PS_EXP);
 
-    // Renderiza linhas
     document.getElementById('exportBody').innerHTML = slice.map(r => {
-      const checked = _expSelecionados.has(r.SKU) ? 'checked' : '';
-      const isRupt  = r.status === 'RUPTURA';
-      const isRisco = r.status === 'RISCO';
-      const rowStyle = isRupt ? 'background:#1a0f14;' : isRisco ? 'background:#161205;' : '';
+      const checked    = _expSelecionados.has(r.SKU) ? 'checked' : '';
+      const isRupt     = r.status === 'RUPTURA';
+      const isRisco    = r.status === 'RISCO';
+      const rowStyle   = isRupt ? 'background:#1a0f14;' : isRisco ? 'background:#161205;' : '';
       const statusLabel = isRupt
         ? '<span style="font-size:10px;font-weight:700;color:#f87171;">⚠ RUPTURA</span>'
         : isRisco
@@ -684,7 +683,8 @@ window.trendCell = function(trend){
               style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;">
           </td>
           <td style="padding:8px;font-size:11px;font-weight:700;color:#6366f1;white-space:nowrap;">${r.SKU}</td>
-          <td style="padding:8px;font-size:11px;color:#c0c9d9;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.desc||''}">${r.desc||'-'}</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.desc||''}">${r.desc||'-'}</td>
+          <td style="padding:8px;text-align:center;">${curvaSpanExp(r.curva||'C')}</td>
           <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${fmtN(r.estoque||0)}</td>
           <td style="padding:8px;font-size:12px;font-weight:700;color:#6366f1;text-align:right;">${fmtN(r.sugestao||0)}</td>
           <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${fmtN(r.qtd30||0)}</td>
@@ -693,50 +693,41 @@ window.trendCell = function(trend){
         </tr>`;
     }).join('');
 
-    // Atualiza checkbox "selecionar tudo" do header
     const todosNaPagina = slice.every(r => _expSelecionados.has(r.SKU));
     document.getElementById('exportCheckAll').checked = slice.length > 0 && todosNaPagina;
     document.getElementById('exportCheckAll').indeterminate =
       !todosNaPagina && slice.some(r => _expSelecionados.has(r.SKU));
 
-    // Paginação
     _buildExportPag(total, _expPage);
 
-    // Subtitle
     document.getElementById('exportSubtitle').textContent =
       `${total} produto(s) encontrado(s) · ${_expSelecionados.size} selecionado(s)`;
 
-    // Atualiza preview
     _atualizarPreview();
   };
 
-  // Toggle individual
   window.exportToggleLine = function(sku){
     if(_expSelecionados.has(sku)) _expSelecionados.delete(sku);
     else _expSelecionados.add(sku);
     renderExportList(_expPage);
   };
 
-  // Toggle all (apenas os da página atual visível no filtro)
   window.exportToggleAll = function(checked){
     const slice = _expDados.slice(_expPage * PS_EXP, (_expPage + 1) * PS_EXP);
     slice.forEach(r => checked ? _expSelecionados.add(r.SKU) : _expSelecionados.delete(r.SKU));
     renderExportList(_expPage);
   };
 
-  // Selecionar todos os resultados filtrados (todas as páginas)
   window.exportSelecionarTudo = function(){
     _expDados.forEach(r => _expSelecionados.add(r.SKU));
     renderExportList(_expPage);
   };
 
-  // Limpar tudo
   window.exportLimparTudo = function(){
     _expSelecionados.clear();
     renderExportList(_expPage);
   };
 
-  // Paginação interna do modal
   function _buildExportPag(total, pg){
     const el = document.getElementById('exportPag');
     const totalPages = Math.ceil(total / PS_EXP);
@@ -756,22 +747,18 @@ window.trendCell = function(trend){
       + `<button class="page-btn${pg===totalPages-1?' disabled':''}" onclick="renderExportList(${pg+1})" ${pg===totalPages-1?'disabled':''}>&#8250;</button>`;
   }
 
-  // Gera o texto formatado para os selecionados
   function _gerarTexto(){
     const linhas = [];
-    // Cabeçalho
-    linhas.push('SKU / DESCRIÇÃO / ESTOQUE / SUGESTÃO / VENDA 30D / COBERTURA / STATUS');
-    linhas.push('─'.repeat(80));
-
+    linhas.push('SKU / DESCRIÇÃO / CURVA / ESTOQUE / SUGESTÃO / VENDA 30D / COBERTURA / STATUS');
+    linhas.push('─'.repeat(90));
     (ESTOQUE_DATA || [])
       .filter(r => _expSelecionados.has(r.SKU))
       .forEach(r => {
         const status = r.status === 'RUPTURA' ? 'RUPTURA' : r.status === 'RISCO' ? 'RISCO' : 'OK';
         linhas.push(
-          `${r.SKU} / ${r.desc||'-'} / ${fmtN(r.estoque||0)} un / ${fmtN(r.sugestao||0)} un / ${fmtN(r.qtd30||0)} un / ${r.cobertura||0} dias / ${status}`
+          `${r.SKU} / ${r.desc||'-'} / ${r.curva||'C'} / ${fmtN(r.estoque||0)} un / ${fmtN(r.sugestao||0)} un / ${fmtN(r.qtd30||0)} un / ${r.cobertura||0} dias / ${status}`
         );
       });
-
     return linhas.join('\n');
   }
 
@@ -781,7 +768,6 @@ window.trendCell = function(trend){
     document.getElementById('exportPreview').value = count > 0 ? _gerarTexto() : '';
   }
 
-  // Copiar
   window.exportCopiar = function(){
     const txt = _gerarTexto();
     if(!txt || _expSelecionados.size === 0) return;
@@ -794,7 +780,6 @@ window.trendCell = function(trend){
     });
   };
 
-  // Baixar .txt
   window.exportBaixar = function(){
     const txt = _gerarTexto();
     if(!txt || _expSelecionados.size === 0) return;
@@ -810,6 +795,6 @@ window.trendCell = function(trend){
 
 })();
 </script>
-  
+
 </body>
 </html>

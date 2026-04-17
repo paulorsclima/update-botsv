@@ -1,796 +1,180 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BotSV</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-
-<!-- LOADING OVERLAY -->
-<div id="loadingOverlay" style="position:fixed;inset:0;background:#0f1117;z-index:9999;
-display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
-<div style="width:48px;height:48px;border:4px solid #1e2535;border-top:4px solid #6366f1;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-<div style="color:#8892a4;font-size:14px;font-family:Inter,sans-serif;" id="loadingMsg">Carregando dados...</div>
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
-</div>
-
-<aside class="sidebar" id="sidebar">
-<div class="logo" style="display:flex;justify-content:center;align-items:center;padding:16px 20px 16px;">
-<span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Sales<span style="color:#6366f1;">IQ</span></span>
-</div>
-
-<div class="nav-section">Menu</div>
-<div class="nav-item active" onclick="showPage('dashboard',this)" title="Dashboard"><span class="icon">📊</span><span class="nav-label">Dashboard</span></div>
-<div class="nav-item" onclick="showPage('vendas',this)" title="Vendas"><span class="icon">📦</span><span class="nav-label">Vendas</span></div>
-<div class="nav-item" onclick="showPage('estoque',this)" title="Estoque"><span class="icon">🗄️</span><span class="nav-label">Estoque</span></div>
-<div class="nav-item" onclick="showPage('insights',this)" title="Insights"><span class="icon">💡</span><span class="nav-label">Insights</span></div>
-<div class="nav-item" onclick="showPage('rupturas',this)" title="Rupturas"><span class="icon">🚨</span><span class="nav-label">Rupturas</span></div>
-<div class="nav-item" onclick="showPage('projections',this)" title="Projeções"><span class="icon">📈</span><span class="nav-label">Projeções</span></div>
-
-<div class="sidebar-footer">
-<button onclick="toggleSidebar()" title="Recolher menu" style="background:none;border:none;color:#4a5568;cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;" onmouseover="this.style.color='#8892a4'" onmouseout="this.style.color='#4a5568'">☰</button>
-<span style="font-size:11px;color:#4a5568;">SalesIQ v3.3</span>
-</div>
-</aside>
-
-<main class="main" id="main">
-
-<!-- DASHBOARD PAGE -->
-<div id="page-dashboard" class="page active">
-<div class="page-header">
-<div>
-<div class="page-title">Dashboard</div>
-<div class="page-subtitle" id="dashSubtitle">Carregando...</div>
-</div>
-<span style="font-size:12px;color:#4a5568;" id="dashCountLabel"></span>
-</div>
-<div class="kpi-grid">
-<div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value" id="kpiReceita">—</div><span class="kpi-badge neutral" id="kpiReceitaBadge"></span></div>
-<div class="kpi-card"><div class="kpi-label">Pedidos</div><div class="kpi-value" id="kpiPedidos">—</div><span class="kpi-badge neutral" id="kpiPedidosBadge"></span></div>
-<div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value" id="kpiTicket">—</div><span class="kpi-badge neutral" id="kpiTicketBadge"></span></div>
-<div class="kpi-card"><div class="kpi-label">SKUs Ativos</div><div class="kpi-value" id="kpiSkus">—</div><span class="kpi-badge neutral" id="kpiSkusBadge"></span></div>
-</div>
-<div class="charts-row">
-<div class="card">
-<div class="card-title">Receita Mensal</div>
-<div class="card-subtitle">Evolução ao longo do período</div>
-<div style="display:flex;gap:6px;margin-bottom:12px;">
-<button class="chart-type-btn active" id="btnLine" onclick="switchChart('line')">Linha</button>
-<button class="chart-type-btn" id="btnBar" onclick="switchChart('bar')">Barras</button>
-</div>
-<canvas id="mainChart" height="80"></canvas>
-</div>
-<div class="card">
-<div class="card-title">Curva ABC</div>
-<div class="card-subtitle">Distribuição de receita</div>
-<canvas id="abcChart" height="120"></canvas>
-</div>
-</div>
-<div class="bottom-grid">
-<div class="card" style="padding:0;">
-<div style="padding:14px 18px;border-bottom:1px solid #1e2535;display:flex;justify-content:space-between;align-items:center;">
-<span style="font-size:13px;font-weight:600;color:#c0c9d9;">Top Produtos</span>
-<span style="font-size:12px;color:#4a5568;" id="tableCountLabel"></span>
-</div>
-<div id="pagTop" class="vpag"></div>
-<div class="prod-table-wrap">
-<table>
-<thead>
-<tr>
-<th style="width:32px;">#</th>
-<th onclick="sortTable('SKU')" class="sortable">SKU <span id="sort-SKU" class="sort-ico">↕</span></th>
-<th onclick="sortTable('produto')" class="sortable">Produto <span id="sort-produto" class="sort-ico">↕</span></th>
-<th onclick="sortTable('curva')" class="sortable">Curva <span id="sort-curva" class="sort-ico">↕</span></th>
-<th onclick="sortTable('receita')" class="sortable">Receita <span id="sort-receita" class="sort-ico">↕</span></th>
-<th onclick="sortTable('qtd')" class="sortable">Qtd <span id="sort-qtd" class="sort-ico">↕</span></th>
-<th onclick="sortTable('vd')" class="sortable">Venda/Dia <span id="sort-vd" class="sort-ico">↕</span></th>
-<th onclick="sortTable('cobertura')" class="sortable">Cobertura <span id="sort-cobertura" class="sort-ico">↕</span></th>
-<th onclick="sortTable('estoque')" class="sortable">Estoque <span id="sort-estoque" class="sort-ico">↕</span></th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody id="prodBody"></tbody>
-</table>
-</div>
-<div id="pagBot" class="vpag"></div>
-</div>
-<div class="card">
-<div class="card-title">Alertas de Estoque</div>
-<div class="card-subtitle" id="alertSubtitle"></div>
-<div class="alert-list" id="alertList"></div>
-</div>
-</div>
-</div>
-
-<!-- PÁGINA VENDAS -->
-<div id="page-vendas" class="page">
-<div class="page-header">
-<div><div class="page-title">Vendas por Produto</div><div class="page-subtitle" id="vendasSubtitle">Carregando...</div></div>
-<span style="font-size:12px;color:#4a5568;" id="vendasCountLabel"></span>
-</div>
-<div class="vendas-kpi-row">
-<div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value" id="vKpiReceita">—</div></div>
-<div class="kpi-card"><div class="kpi-label">Qtd Vendida</div><div class="kpi-value" id="vKpiQtd">—</div></div>
-<div class="kpi-card"><div class="kpi-label">Ticket Médio</div><div class="kpi-value" id="vKpiTicket">—</div></div>
-<div class="kpi-card"><div class="kpi-label">SKUs Ativos</div><div class="kpi-value" id="vKpiSkus">—</div></div>
-</div>
-<div class="vendas-filter-bar">
-<div style="position:relative;flex:1;min-width:180px;">
-<span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:14px;">🔍</span>
-<input class="vf-input" style="width:100%;padding-left:36px;" id="vSearch" oninput="applyVendasFilters()" placeholder="Buscar SKU ou produto...">
-</div>
-<select class="vf-select" id="vAno" onchange="applyVendasFilters()"><option value="">Todos os anos</option></select>
-<select class="vf-select" id="vMes" onchange="applyVendasFilters()"><option value="">Todos os meses</option></select>
-<select class="vf-select" id="vCurva" onchange="applyVendasFilters()">
-<option value="">Todas as curvas</option>
-<option value="A">Curva A</option>
-<option value="B">Curva B</option>
-<option value="C">Curva C</option>
-</select>
-</div>
-<div class="vendas-chart-row">
-<div class="card">
-<div class="card-title">Receita Mensal</div>
-<div class="card-subtitle">Evolução ao longo dos meses</div>
-<canvas id="vendasLineChart" height="90"></canvas>
-</div>
-<div class="card">
-<div class="card-title">Distribuição por Curva</div>
-<div class="card-subtitle">Participação na receita</div>
-<canvas id="vendasCurvaChart" height="130"></canvas>
-</div>
-</div>
-<div class="card" style="padding:0;">
-<div style="padding:14px 18px;border-bottom:1px solid #1e2535;display:flex;justify-content:space-between;align-items:center;">
-<span style="font-size:13px;font-weight:600;color:#c0c9d9;">Produtos</span>
-<span style="font-size:12px;color:#4a5568;" id="vendasTableCount"></span>
-</div>
-<div id="vendasPagTop" class="vpag"></div>
-<div class="vendas-table-wrap">
-<table>
-<thead>
-<tr>
-<th style="width:32px;">#</th>
-<th onclick="sortVendas('SKU')" class="sortable">SKU <span id="vsort-SKU" class="sort-ico">↕</span></th>
-<th onclick="sortVendas('produto')" class="sortable">Produto <span id="vsort-produto" class="sort-ico">↕</span></th>
-<th onclick="sortVendas('curva')" class="sortable">Curva <span id="vsort-curva" class="sort-ico">↕</span></th>
-<th onclick="sortVendas('qtd')" class="sortable">Qtd Vendida <span id="vsort-qtd" class="sort-ico">↕</span></th>
-<th onclick="sortVendas('receita')" class="sortable">Receita <span id="vsort-receita" class="sort-ico">↕</span></th>
-<th onclick="sortVendas('ticket')" class="sortable">Ticket Médio <span id="vsort-ticket" class="sort-ico">↕</span></th>
-<th onclick="sortVendas('vd')" class="sortable">Venda/Dia <span id="vsort-vd" class="sort-ico">↕</span></th>
-<th onclick="sortVendas('cobertura')" class="sortable">Cobertura <span id="vsort-cobertura" class="sort-ico">↕</span></th>
-<th onclick="sortVendas('estoque')" class="sortable">Estoque <span id="vsort-estoque" class="sort-ico">↕</span></th>
-<th>Tendência</th>
-</tr>
-</thead>
-<tbody id="vendasBody"></tbody>
-</table>
-</div>
-<div id="vendasPagBot" class="vpag"></div>
-</div>
-</div>
-
-<!-- PÁGINA ESTOQUE -->
-<div id="page-estoque" class="page">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Estoque</div>
-      <div class="page-subtitle">Visão geral do inventário</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:12px;">
-      <span style="font-size:12px;color:#4a5568;" id="estoqueCountLabel"></span>
-      <button onclick="abrirModalExport()" style="
-        background:#1e2535;border:1px solid #2a3448;color:#8892a4;
-        font-size:12px;padding:6px 13px;border-radius:8px;cursor:pointer;
-        display:flex;align-items:center;gap:5px;transition:all 0.15s;
-      " onmouseover="this.style.background='#2a3448';this.style.color='#c0c9d9'"
-         onmouseout="this.style.background='#1e2535';this.style.color='#8892a4'">
-        ⬇ Exportar
-      </button>
-    </div>
-  </div>
-
-  <!-- KPIs -->
-  <div class="kpi-grid" style="margin-bottom:20px;">
-    <div class="kpi-card">
-      <div class="kpi-label">Total SKUs</div>
-      <div class="kpi-value" id="estKpiTotal">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Rupturas</div>
-      <div class="kpi-value" id="estKpiRuptura" style="color:#f87171;">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Em Risco</div>
-      <div class="kpi-value" id="estKpiRisco" style="color:#fbbf24;">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">OK</div>
-      <div class="kpi-value" id="estKpiOk" style="color:#34d399;">—</div>
-    </div>
-  </div>
-
-  <!-- Tabela com paginação -->
-  <div class="card" style="padding:0;">
-    <div style="padding:14px 18px;border-bottom:1px solid #1e2535;display:flex;justify-content:space-between;align-items:center;">
-      <span style="font-size:13px;font-weight:600;color:#c0c9d9;">Produtos em Estoque</span>
-      <span style="font-size:12px;color:#4a5568;" id="estoqueTableCount"></span>
-    </div>
-
-    <!-- BARRA DE FILTROS -->
-    <div style="padding:10px 18px;border-bottom:1px solid #1e2535;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <div style="position:relative;flex:1;min-width:180px;">
-        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:14px;">🔍</span>
-        <input class="vf-input" style="width:100%;padding-left:36px;" id="estSearch" oninput="window._filtroEstoque()" placeholder="Buscar SKU ou descrição...">
-      </div>
-      <select class="vf-select" id="estFiltroStatus" onchange="window._filtroEstoque()">
-        <option value="">Todos os status</option>
-        <option value="RUPTURA">Ruptura</option>
-        <option value="RISCO">Risco</option>
-        <option value="OK">OK</option>
-      </select>
-      <select class="vf-select" id="estFiltroCurva" onchange="window._filtroEstoque()">
-        <option value="">Todas as curvas</option>
-        <option value="A">Curva A</option>
-        <option value="B">Curva B</option>
-        <option value="C">Curva C</option>
-      </select>
-      <select class="vf-select" id="estFiltroOrdem" onchange="window._filtroEstoque()">
-        <option value="receita">Ordenar: Receita ↓</option>
-        <option value="az">Ordenar: A → Z</option>
-        <option value="za">Ordenar: Z → A</option>
-        <option value="estoque_asc">Estoque ↑</option>
-        <option value="estoque_desc">Estoque ↓</option>
-        <option value="cobertura_asc">Cobertura ↑</option>
-      </select>
-    </div>
-
-    <div id="estoquePagTop" class="vpag"></div>
-    <div style="overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:32px;">#</th>
-            <th>SKU</th>
-            <th>Descrição</th>
-            <th>Curva</th>
-            <th>Estoque</th>
-            <th>Status</th>
-            <th>Venda 30d</th>
-            <th>Tendência</th>
-            <th>Sugestão</th>
-            <th>Receita</th>
-          </tr>
-        </thead>
-        <tbody id="estoqueBody"></tbody>
-      </table>
-    </div>
-    <div id="estoquePagBot" class="vpag"></div>
-  </div>
-</div>
-
 <!-- ═══════════════════════════════════════════════
-     MODAL DE EXPORTAÇÃO DE ESTOQUE
+     MODAL EXPORTAÇÃO — VENDAS (script)
      ═══════════════════════════════════════════════ -->
-<div id="exportOverlay" style="
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);
-  z-index:2000;align-items:center;justify-content:center;
-" onclick="fecharModalExport(event)">
-  <div style="
-    background:#161b27;border:1px solid #1e2535;border-radius:16px;
-    padding:28px;width:760px;max-width:96vw;max-height:90vh;
-    overflow-y:auto;position:relative;
-  " onclick="event.stopPropagation()">
-
-    <!-- Cabeçalho -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-      <div>
-        <div style="font-size:16px;font-weight:700;color:#fff;">⬇ Exportar Pedido ao Fornecedor</div>
-        <div style="font-size:12px;color:#4a5568;margin-top:3px;" id="exportSubtitle">Selecione os produtos</div>
-      </div>
-      <span onclick="fecharModalExport()" style="font-size:20px;color:#4a5568;cursor:pointer;line-height:1;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#4a5568'">✕</span>
-    </div>
-
-    <!-- Filtros: status + curva + busca + ações -->
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
-
-      <!-- FILTRO STATUS -->
-      <select id="exportFiltroStatus" onchange="renderExportList(0)" style="
-        background:#0f1117;border:1px solid #1e2535;border-radius:8px;
-        padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;
-      ">
-        <option value="">Todos os status</option>
-        <option value="RUPTURA">Ruptura</option>
-        <option value="RISCO">Risco</option>
-        <option value="OK">OK</option>
-      </select>
-
-      <!-- ✅ NOVO: FILTRO CURVA -->
-      <select id="exportFiltroCurva" onchange="renderExportList(0)" style="
-        background:#0f1117;border:1px solid #1e2535;border-radius:8px;
-        padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;
-      ">
-        <option value="">Todas as curvas</option>
-        <option value="A">Curva A</option>
-        <option value="B">Curva B</option>
-        <option value="C">Curva C</option>
-      </select>
-
-      <!-- BUSCA -->
-      <div style="position:relative;flex:1;min-width:160px;">
-        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:13px;">🔍</span>
-        <input id="exportBusca" oninput="renderExportList(0)" placeholder="Buscar SKU ou descrição..." style="
-          width:100%;background:#0f1117;border:1px solid #1e2535;border-radius:8px;
-          padding:7px 12px 7px 30px;font-size:12px;color:#e2e8f0;outline:none;
-        ">
-      </div>
-
-      <button onclick="exportSelecionarTudo()" style="
-        background:#1e2535;border:1px solid #2a3448;color:#8892a4;
-        font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;
-      ">✅ Selecionar Tudo</button>
-      <button onclick="exportLimparTudo()" style="
-        background:#1e2535;border:1px solid #2a3448;color:#8892a4;
-        font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;
-      ">🗑 Limpar Tudo</button>
-    </div>
-
-    <!-- Lista com checkboxes -->
-    <div style="border:1px solid #1e2535;border-radius:10px;overflow:hidden;margin-bottom:12px;">
-      <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr style="background:#0f1117;">
-            <th style="width:36px;padding:8px 10px;text-align:center;">
-              <input type="checkbox" id="exportCheckAll" onchange="exportToggleAll(this.checked)"
-                style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;">
-            </th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:left;">SKU</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:left;">Descrição</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:center;">Curva</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Estoque</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Sugestão</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Venda 30d</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Cobertura</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:center;">Status</th>
-          </tr>
-        </thead>
-        <tbody id="exportBody"></tbody>
-      </table>
-    </div>
-
-    <!-- Paginação do modal -->
-    <div id="exportPag" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;"></div>
-
-    <!-- Preview do texto gerado -->
-    <div style="margin-bottom:12px;">
-      <div style="font-size:11px;color:#4a5568;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
-        Preview — <span id="exportSelectedCount">0</span> produto(s) selecionado(s)
-      </div>
-      <textarea id="exportPreview" readonly style="
-        width:100%;height:120px;background:#0f1117;border:1px solid #1e2535;
-        border-radius:8px;padding:10px 12px;font-size:11px;color:#8892a4;
-        font-family:monospace;resize:vertical;outline:none;line-height:1.6;
-      " placeholder="Selecione produtos para gerar o texto..."></textarea>
-    </div>
-
-    <!-- Botões de ação -->
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button onclick="exportCopiar()" id="btnExportCopiar" style="
-        background:#1e2535;border:1px solid #2a3448;color:#c0c9d9;
-        font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;
-        transition:all 0.15s;
-      " onmouseover="this.style.background='#2a3448'" onmouseout="this.style.background='#1e2535'">
-        📋 Copiar
-      </button>
-      <button onclick="exportBaixar()" style="
-        background:#6366f1;border:none;color:#fff;
-        font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;
-        transition:opacity 0.15s;
-      " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-        💾 Baixar .txt
-      </button>
-    </div>
-
-  </div>
-</div>
-
-<!-- PÁGINA INSIGHTS -->
-<div id="page-insights" class="page">
-<div class="page-header"><div><div class="page-title">Insights</div><div class="page-subtitle">Análise inteligente de produtos</div></div></div>
-<div id="insightsContent"></div>
-</div>
-
-<!-- PÁGINA RUPTURAS -->
-<div id="page-rupturas" class="page">
-<div class="page-header">
-<div><div class="page-title">Rupturas &amp; Riscos</div><div class="page-subtitle" id="ruptSubtitle"></div></div>
-<span style="font-size:12px;color:#4a5568;" id="ruptCountLabel"></span>
-</div>
-<div id="ruptContent"></div>
-</div>
-
-<!-- PÁGINA PROJEÇÕES -->
-<div id="page-projections" class="page">
-<div class="page-header"><div><div class="page-title">Projeções</div><div class="page-subtitle">Em breve</div></div></div>
-<div class="card" style="padding:60px;text-align:center;color:#4a5568;">Página em construção</div>
-</div>
-</main>
-
-<!-- MODAL SKU -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
-<div class="modal" id="modalBox">
-<span class="modal-close" onclick="closeModal()">✕</span>
-<div class="modal-sku" id="modalSku"></div>
-<div class="modal-name" id="modalName"></div>
-<div class="modal-kpis" id="modalKpis"></div>
-<div class="tabs" id="modalTabs"></div>
-<div id="modalTabContent"></div>
-</div>
-</div>
-
-<!-- Scripts (ordem importa) -->
-<script src="js/config.js"></script>
-<script src="js/app.js"></script>
-<script src="js/vendas.js"></script>
-
-<!-- ═══════════════════════════════════════════════════════
-     TENDÊNCIA GLOBAL — compartilhada por Estoque e Vendas
-     ═══════════════════════════════════════════════════════ -->
-<script>
-window.calcTrend = function(qtd30, qtd60, qtd90){
-  const q30 = Number(qtd30) || 0;
-  const q60 = Number(qtd60) || 0;
-  const q90 = Number(qtd90) || 0;
-  if(q90 > 0){
-    const antes = (q90 - q30) / 2;
-    if(antes === 0) return 0;
-    return Math.round(((q30 - antes) / antes) * 100);
-  }
-  if(q60 > 0){
-    const antes = q60 - q30;
-    if(antes === 0) return 0;
-    return Math.round(((q30 - antes) / antes) * 100);
-  }
-  return 0;
-};
-
-window.trendCell = function(trend){
-  const t = Number(trend) || 0;
-  const abs = Math.abs(t);
-  let color, arrow, label;
-  if(t > 10){
-    color = '#34d399'; arrow = '▲'; label = '+' + t + '%';
-  } else if(t < -10){
-    color = '#f87171'; arrow = '▼'; label = t + '%';
-  } else {
-    color = '#8892a4'; arrow = '➔'; label = (t >= 0 ? '+' : '') + t + '%';
-  }
-  const barPct   = Math.min(abs, 100);
-  const barColor = t > 10 ? '#34d399' : t < -10 ? '#f87171' : '#4a5568';
-  const tip = t !== 0
-    ? `Variação de vendas: ${label} (base 90d ou 60d)`
-    : 'Sem variação significativa';
-  return `
-    <div title="${tip}" style="display:flex;flex-direction:column;gap:4px;min-width:100px;max-width:130px;">
-      <div style="display:flex;align-items:center;gap:5px;">
-        <span style="color:${color};font-size:13px;font-weight:700;line-height:1;">${arrow}</span>
-        <span style="color:${color};font-size:12px;font-weight:600;">${label}</span>
-      </div>
-      <div style="background:#1e2535;border-radius:3px;height:5px;width:100%;overflow:hidden;">
-        <div style="background:${barColor};border-radius:3px;height:5px;width:${barPct}%;transition:width 0.4s ease;"></div>
-      </div>
-    </div>`;
-};
-</script>
-
-<!-- Estoque: paginação, KPIs e filtros -->
 <script>
 (function(){
-  const PS = 100;
-  let _estPage = 0;
-  let _estDadosFiltrados = [];
+  const PS_EXP_V = 50;
+  let _expVDados        = [];
+  let _expVSelecionados = new Set();
+  let _expVPage         = 0;
 
   function fmtN(v){ return (v||0).toLocaleString('pt-BR'); }
   function fmt(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
-  function curvaSpan(c){
-    if(c==='A') return '<span class="kpi-badge" style="font-size:10px;background:#0d2618;color:#34d399;">A</span>';
-    if(c==='B') return '<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>';
-    return '<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>';
-  }
-
-  function statusBadgeEst(s){
-    if(s==='RUPTURA') return '<span class="badge-ruptura">⚠ Ruptura</span>';
-    if(s==='RISCO')   return '<span class="badge-risco">⚠ Risco</span>';
-    return '<span class="badge-ok">✓ OK</span>';
-  }
-
-  function resolveTrend(r){
-    if(r.kpi_trend !== undefined && r.kpi_trend !== null && r.kpi_trend !== ''){
-      return Number(r.kpi_trend);
-    }
-    return window.calcTrend(r.qtd30, r.qtd60, r.qtd90);
-  }
-
-  window._filtroEstoque = function(){
-    const q      = (document.getElementById('estSearch').value || '').toLowerCase();
-    const status = document.getElementById('estFiltroStatus').value;
-    const curva  = document.getElementById('estFiltroCurva').value;
-    const ordem  = document.getElementById('estFiltroOrdem').value;
-
-    let data = (ESTOQUE_DATA || []).filter(r => {
-      if(q && !(r.SKU||'').toLowerCase().includes(q) && !(r.desc||'').toLowerCase().includes(q)) return false;
-      if(status && r.status !== status) return false;
-      if(curva  && r.curva  !== curva)  return false;
-      return true;
-    });
-
-    if(ordem === 'az')
-      data.sort((a,b) => (a.desc||'').localeCompare(b.desc||'', 'pt-BR'));
-    else if(ordem === 'za')
-      data.sort((a,b) => (b.desc||'').localeCompare(a.desc||'', 'pt-BR'));
-    else if(ordem === 'estoque_asc')
-      data.sort((a,b) => (a.estoque||0) - (b.estoque||0));
-    else if(ordem === 'estoque_desc')
-      data.sort((a,b) => (b.estoque||0) - (a.estoque||0));
-    else if(ordem === 'cobertura_asc')
-      data.sort((a,b) => (a.cobertura||0) - (b.cobertura||0));
-
-    _estDadosFiltrados = data;
-    renderEstoquePage(0);
-  };
-
-  function buildEstoquePag(total, pg){
-    const totalPages = Math.ceil(total / PS);
-    const buildPag = (id) => {
-      const el = document.getElementById(id);
-      if(!el) return;
-      if(totalPages <= 1){ el.innerHTML=''; return; }
-      const s = pg*PS+1, e = Math.min((pg+1)*PS, total);
-      let pages = [...Array(totalPages).keys()];
-      if(totalPages > 7){
-        let st = Math.max(0, pg-3);
-        let en = Math.min(totalPages, st+7);
-        if(en-st < 7) st = Math.max(0, en-7);
-        pages = pages.slice(st, en);
-      }
-      el.innerHTML =
-        `<span style="font-size:12px;color:#4a5568;margin-right:6px;">${s}–${e} de ${total}</span>`
-        +`<button class="page-btn${pg===0?' disabled':''}" onclick="window._goEstPage(${pg-1})" ${pg===0?'disabled':''}>&#8249;</button>`
-        +pages.map(p2=>`<button class="page-btn${p2===pg?' active':''}" onclick="window._goEstPage(${p2})">${p2+1}</button>`).join('')
-        +`<button class="page-btn${pg===totalPages-1?' disabled':''}" onclick="window._goEstPage(${pg+1})" ${pg===totalPages-1?'disabled':''}>&#8250;</button>`;
-    };
-    buildPag('estoquePagTop');
-    buildPag('estoquePagBot');
-  }
-
-  function renderEstoquePage(pg){
-    _estPage = pg || 0;
-    const data  = _estDadosFiltrados;
-    const slice = data.slice(_estPage*PS, (_estPage+1)*PS);
-
-    document.getElementById('estoqueBody').innerHTML = slice.map((r, i) => `
-      <tr onclick="openModal('${r.SKU}')">
-        <td class="rank">${_estPage*PS + i + 1}</td>
-        <td><span class="sku-tag">${r.SKU}</span></td>
-        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.desc||''}">${r.desc||'-'}</td>
-        <td>${curvaSpan(r.curva||'C')}</td>
-        <td>${fmtN(r.estoque||0)}</td>
-        <td>${statusBadgeEst(r.status||'OK')}</td>
-        <td>${fmtN(r.qtd30||0)} un</td>
-        <td>${window.trendCell(resolveTrend(r))}</td>
-        <td style="color:#6366f1;font-weight:600;">${fmtN(r.sugestao||0)} un</td>
-        <td style="color:#34d399;">${fmt(r.receita||0)}</td>
-      </tr>`).join('');
-
-    document.getElementById('estoqueTableCount').textContent = data.length + ' SKUs';
-    document.getElementById('estoqueCountLabel').textContent = data.length + ' SKUs';
-    buildEstoquePag(data.length, _estPage);
-  }
-
-  function renderEstoqueKpis(){
-    const data    = ESTOQUE_DATA || [];
-    const total   = data.length;
-    const ruptura = data.filter(r => r.status === 'RUPTURA').length;
-    const risco   = data.filter(r => r.status === 'RISCO').length;
-    const ok      = data.filter(r => r.status === 'OK').length;
-
-    document.getElementById('estKpiTotal').textContent   = fmtN(total);
-    document.getElementById('estKpiRuptura').textContent = fmtN(ruptura);
-    document.getElementById('estKpiRisco').textContent   = fmtN(risco);
-    document.getElementById('estKpiOk').textContent      = fmtN(ok);
-  }
-
-  window._goEstPage = function(pg){
-    renderEstoquePage(pg);
-    window.scrollTo(0,0);
-  };
-
-  window.renderEstoque = function(){
-    _estDadosFiltrados = ESTOQUE_DATA || [];
-    renderEstoqueKpis();
-    renderEstoquePage(0);
-  };
-})();
-</script>
-
-<!-- LÓGICA DO MODAL DE EXPORTAÇÃO -->
-<script>
-(function(){
-  const PS_EXP = 50;
-  let _expDados       = [];
-  let _expSelecionados = new Set();
-  let _expPage        = 0;
-
-  function fmtN(v){ return (v||0).toLocaleString('pt-BR'); }
-
-  function curvaSpanExp(c){
+  function curvaSpanExpV(c){
     if(c==='A') return '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#0d2618;color:#34d399;">A</span>';
     if(c==='B') return '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#1a2f0d;color:#84cc16;">B</span>';
     return '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#1e2535;color:#8892a4;">C</span>';
   }
 
-  window.abrirModalExport = function(){
-    document.getElementById('exportOverlay').style.display = 'flex';
-    document.getElementById('exportFiltroStatus').value = '';
-    document.getElementById('exportFiltroCurva').value  = '';
-    document.getElementById('exportBusca').value        = '';
-    renderExportList(0);
+  window.abrirModalExportVendas = function(){
+    document.getElementById('exportVendasOverlay').style.display = 'flex';
+    document.getElementById('exportVendasFiltroCurva').value = '';
+    document.getElementById('exportVendasBusca').value       = '';
+    _expVSelecionados.clear();
+    renderExportVendasList(0);
   };
 
-  window.fecharModalExport = function(e){
-    if(!e || e.target === document.getElementById('exportOverlay')){
-      document.getElementById('exportOverlay').style.display = 'none';
-    }
+  window.fecharModalExportVendas = function(e){
+    if(!e || e.target === document.getElementById('exportVendasOverlay'))
+      document.getElementById('exportVendasOverlay').style.display = 'none';
   };
 
-  window.renderExportList = function(pg){
-    _expPage = pg || 0;
-    const statusFiltro = document.getElementById('exportFiltroStatus').value;
-    const curvaFiltro  = document.getElementById('exportFiltroCurva').value;   // ✅ NOVO
-    const busca = (document.getElementById('exportBusca').value || '').toLowerCase();
+  function _getSourceData(){
+    return (window._currentVendas || DATA.produtos || []).slice();
+  }
 
-    _expDados = (ESTOQUE_DATA || []).filter(r => {
-      if(statusFiltro && r.status !== statusFiltro) return false;
-      if(curvaFiltro  && r.curva  !== curvaFiltro)  return false;              // ✅ NOVO
-      if(busca && !(r.SKU||'').toLowerCase().includes(busca) && !(r.desc||'').toLowerCase().includes(busca)) return false;
+  window.renderExportVendasList = function(pg){
+    _expVPage = pg || 0;
+    const curvaFiltro = document.getElementById('exportVendasFiltroCurva').value;
+    const busca = (document.getElementById('exportVendasBusca').value || '').toLowerCase();
+
+    _expVDados = _getSourceData().filter(p => {
+      if(curvaFiltro && p.curva !== curvaFiltro) return false;
+      if(busca && !(p.SKU||'').toLowerCase().includes(busca) && !(p.produto||'').toLowerCase().includes(busca)) return false;
       return true;
     });
 
-    const total = _expDados.length;
-    const slice = _expDados.slice(_expPage * PS_EXP, (_expPage + 1) * PS_EXP);
+    const total = _expVDados.length;
+    const slice = _expVDados.slice(_expVPage*PS_EXP_V, (_expVPage+1)*PS_EXP_V);
 
-    document.getElementById('exportBody').innerHTML = slice.map(r => {
-      const checked    = _expSelecionados.has(r.SKU) ? 'checked' : '';
-      const isRupt     = r.status === 'RUPTURA';
-      const isRisco    = r.status === 'RISCO';
-      const rowStyle   = isRupt ? 'background:#1a0f14;' : isRisco ? 'background:#161205;' : '';
-      const statusLabel = isRupt
-        ? '<span style="font-size:10px;font-weight:700;color:#f87171;">⚠ RUPTURA</span>'
-        : isRisco
-          ? '<span style="font-size:10px;font-weight:700;color:#fbbf24;">⚠ RISCO</span>'
-          : '<span style="font-size:10px;font-weight:700;color:#34d399;">✓ OK</span>';
+    document.getElementById('exportVendasBody').innerHTML = slice.map(p => {
+      const checked = _expVSelecionados.has(p.SKU) ? 'checked' : '';
+      const ticket  = p.qtd > 0 ? fmt(p.receita / p.qtd) : '—';
       return `
-        <tr style="border-top:1px solid #1a2030;${rowStyle}cursor:pointer;"
-            onclick="exportToggleLine('${r.SKU}')">
+        <tr style="border-top:1px solid #1a2030;cursor:pointer;" onclick="exportVendasToggleLine('${p.SKU}')">
           <td style="text-align:center;padding:8px 10px;">
-            <input type="checkbox" data-sku="${r.SKU}" ${checked}
-              onclick="event.stopPropagation();exportToggleLine('${r.SKU}')"
+            <input type="checkbox" data-sku="${p.SKU}" ${checked}
+              onclick="event.stopPropagation();exportVendasToggleLine('${p.SKU}')"
               style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;">
           </td>
-          <td style="padding:8px;font-size:11px;font-weight:700;color:#6366f1;white-space:nowrap;">${r.SKU}</td>
-          <td style="padding:8px;font-size:11px;color:#c0c9d9;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.desc||''}">${r.desc||'-'}</td>
-          <td style="padding:8px;text-align:center;">${curvaSpanExp(r.curva||'C')}</td>
-          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${fmtN(r.estoque||0)}</td>
-          <td style="padding:8px;font-size:12px;font-weight:700;color:#6366f1;text-align:right;">${fmtN(r.sugestao||0)}</td>
-          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${fmtN(r.qtd30||0)}</td>
-          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${r.cobertura||0} dias</td>
-          <td style="padding:8px;text-align:center;">${statusLabel}</td>
+          <td style="padding:8px;font-size:11px;font-weight:700;color:#6366f1;white-space:nowrap;">${p.SKU}</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.produto||''}">${p.produto||'-'}</td>
+          <td style="padding:8px;text-align:center;">${curvaSpanExpV(p.curva||'C')}</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${fmtN(p.qtd||0)}</td>
+          <td style="padding:8px;font-size:12px;font-weight:700;color:#34d399;text-align:right;">${fmt(p.receita||0)}</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${ticket}</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${(p.vd||0).toFixed(2)}/dia</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${p.cobertura||0} dias</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${fmtN(p.estoque||0)}</td>
         </tr>`;
     }).join('');
 
-    const todosNaPagina = slice.every(r => _expSelecionados.has(r.SKU));
-    document.getElementById('exportCheckAll').checked = slice.length > 0 && todosNaPagina;
-    document.getElementById('exportCheckAll').indeterminate =
-      !todosNaPagina && slice.some(r => _expSelecionados.has(r.SKU));
+    const todosNaPagina = slice.every(p => _expVSelecionados.has(p.SKU));
+    document.getElementById('exportVendasCheckAll').checked       = slice.length > 0 && todosNaPagina;
+    document.getElementById('exportVendasCheckAll').indeterminate = !todosNaPagina && slice.some(p => _expVSelecionados.has(p.SKU));
 
-    _buildExportPag(total, _expPage);
-
-    document.getElementById('exportSubtitle').textContent =
-      `${total} produto(s) encontrado(s) · ${_expSelecionados.size} selecionado(s)`;
-
-    _atualizarPreview();
+    _buildExportVendasPag(total, _expVPage);
+    document.getElementById('exportVendasSubtitle').textContent =
+      `${total} produto(s) encontrado(s) · ${_expVSelecionados.size} selecionado(s)`;
+    _atualizarPreviewVendas();
   };
 
-  window.exportToggleLine = function(sku){
-    if(_expSelecionados.has(sku)) _expSelecionados.delete(sku);
-    else _expSelecionados.add(sku);
-    renderExportList(_expPage);
+  window.exportVendasToggleLine = function(sku){
+    _expVSelecionados.has(sku) ? _expVSelecionados.delete(sku) : _expVSelecionados.add(sku);
+    renderExportVendasList(_expVPage);
+  };
+  window.exportVendasToggleAll = function(c){
+    const sl = _expVDados.slice(_expVPage*PS_EXP_V, (_expVPage+1)*PS_EXP_V);
+    sl.forEach(p => c ? _expVSelecionados.add(p.SKU) : _expVSelecionados.delete(p.SKU));
+    renderExportVendasList(_expVPage);
+  };
+  window.exportVendasSelecionarTudo = function(){
+    _expVDados.forEach(p => _expVSelecionados.add(p.SKU));
+    renderExportVendasList(_expVPage);
+  };
+  window.exportVendasLimparTudo = function(){
+    _expVSelecionados.clear();
+    renderExportVendasList(_expVPage);
   };
 
-  window.exportToggleAll = function(checked){
-    const slice = _expDados.slice(_expPage * PS_EXP, (_expPage + 1) * PS_EXP);
-    slice.forEach(r => checked ? _expSelecionados.add(r.SKU) : _expSelecionados.delete(r.SKU));
-    renderExportList(_expPage);
-  };
-
-  window.exportSelecionarTudo = function(){
-    _expDados.forEach(r => _expSelecionados.add(r.SKU));
-    renderExportList(_expPage);
-  };
-
-  window.exportLimparTudo = function(){
-    _expSelecionados.clear();
-    renderExportList(_expPage);
-  };
-
-  function _buildExportPag(total, pg){
-    const el = document.getElementById('exportPag');
-    const totalPages = Math.ceil(total / PS_EXP);
+  function _buildExportVendasPag(total, pg){
+    const el = document.getElementById('exportVendasPag');
+    const totalPages = Math.ceil(total / PS_EXP_V);
     if(totalPages <= 1){ el.innerHTML = ''; return; }
-    const s = pg * PS_EXP + 1, e = Math.min((pg+1) * PS_EXP, total);
+    const s = pg*PS_EXP_V+1, e = Math.min((pg+1)*PS_EXP_V, total);
     let pages = [...Array(totalPages).keys()];
-    if(totalPages > 7){
-      let st = Math.max(0, pg-3);
-      let en = Math.min(totalPages, st+7);
-      if(en-st < 7) st = Math.max(0, en-7);
-      pages = pages.slice(st, en);
-    }
+    if(totalPages > 7){ let st=Math.max(0,pg-3); let en=Math.min(totalPages,st+7); if(en-st<7)st=Math.max(0,en-7); pages=pages.slice(st,en); }
     el.innerHTML =
-      `<span style="font-size:11px;color:#4a5568;margin-right:4px;">${s}–${e} de ${total}</span>`
-      + `<button class="page-btn${pg===0?' disabled':''}" onclick="renderExportList(${pg-1})" ${pg===0?'disabled':''}>&#8249;</button>`
-      + pages.map(p2 => `<button class="page-btn${p2===pg?' active':''}" onclick="renderExportList(${p2})">${p2+1}</button>`).join('')
-      + `<button class="page-btn${pg===totalPages-1?' disabled':''}" onclick="renderExportList(${pg+1})" ${pg===totalPages-1?'disabled':''}>&#8250;</button>`;
+      `<span style="font-size:12px;color:#4a5568;margin-right:6px;">${s}–${e} de ${total}</span>`
+      +`<button class="page-btn${pg===0?' disabled':''}" onclick="renderExportVendasList(${pg-1})" ${pg===0?'disabled':''}>&#8249;</button>`
+      +pages.map(p2=>`<button class="page-btn${p2===pg?' active':''}" onclick="renderExportVendasList(${p2})">${p2+1}</button>`).join('')
+      +`<button class="page-btn${pg===totalPages-1?' disabled':''}" onclick="renderExportVendasList(${pg+1})" ${pg===totalPages-1?'disabled':''}>&#8250;</button>`;
   }
 
-  function _gerarTexto(){
-    const linhas = [];
-    linhas.push('SKU / DESCRIÇÃO / CURVA / ESTOQUE / SUGESTÃO / VENDA 30D / COBERTURA / STATUS');
-    linhas.push('─'.repeat(90));
-    (ESTOQUE_DATA || [])
-      .filter(r => _expSelecionados.has(r.SKU))
-      .forEach(r => {
-        const status = r.status === 'RUPTURA' ? 'RUPTURA' : r.status === 'RISCO' ? 'RISCO' : 'OK';
-        linhas.push(
-          `${r.SKU} / ${r.desc||'-'} / ${r.curva||'C'} / ${fmtN(r.estoque||0)} un / ${fmtN(r.sugestao||0)} un / ${fmtN(r.qtd30||0)} un / ${r.cobertura||0} dias / ${status}`
-        );
-      });
-    return linhas.join('\n');
+  function _atualizarPreviewVendas(){
+    const selecionados = _getSourceData().filter(p => _expVSelecionados.has(p.SKU));
+    document.getElementById('exportVendasSelectedCount').textContent = selecionados.length;
+
+    if(selecionados.length === 0){
+      document.getElementById('exportVendasPreview').value = '';
+      return;
+    }
+
+    const now     = new Date();
+    const dataStr = now.toLocaleDateString('pt-BR');
+    const horaStr = now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+
+    const recTotal    = selecionados.reduce((s,p) => s+(p.receita||0), 0);
+    const qtdTotal    = selecionados.reduce((s,p) => s+(p.qtd||0), 0);
+    const ticketMedio = selecionados.length > 0 ? recTotal / selecionados.length : 0;
+
+    let linhas = [];
+    linhas.push(`📦 RELATÓRIO DE VENDAS — ${dataStr} às ${horaStr}`);
+    linhas.push('═'.repeat(52));
+    linhas.push(`Total de produtos: ${selecionados.length}`);
+    linhas.push(`Receita total:     ${fmt(recTotal)}`);
+    linhas.push(`Qtd total vendida: ${fmtN(qtdTotal)} un`);
+    linhas.push(`Ticket médio:      ${fmt(ticketMedio)}`);
+    linhas.push('─'.repeat(52));
+
+    selecionados.forEach((p, i) => {
+      const ticket = p.qtd > 0 ? fmt(p.receita / p.qtd) : '—';
+      linhas.push(`${String(i+1).padStart(3,'0')}. [${p.curva||'C'}] ${p.SKU} — ${p.produto||'-'}`);
+      linhas.push(`     Receita: ${fmt(p.receita||0)}  |  Qtd: ${fmtN(p.qtd||0)} un  |  Ticket: ${ticket}`);
+      linhas.push(`     Venda/Dia: ${(p.vd||0).toFixed(2)}  |  Cobertura: ${p.cobertura||0} dias  |  Estoque: ${fmtN(p.estoque||0)}`);
+    });
+
+    linhas.push('═'.repeat(52));
+    document.getElementById('exportVendasPreview').value = linhas.join('\n');
   }
 
-  function _atualizarPreview(){
-    const count = _expSelecionados.size;
-    document.getElementById('exportSelectedCount').textContent = count;
-    document.getElementById('exportPreview').value = count > 0 ? _gerarTexto() : '';
-  }
-
-  window.exportCopiar = function(){
-    const txt = _gerarTexto();
-    if(!txt || _expSelecionados.size === 0) return;
+  window.exportVendasCopiar = function(){
+    const txt = document.getElementById('exportVendasPreview').value;
+    if(!txt) return;
     navigator.clipboard.writeText(txt).then(() => {
-      const btn = document.getElementById('btnExportCopiar');
-      const orig = btn.innerHTML;
-      btn.innerHTML = '✅ Copiado!';
+      const btn = document.getElementById('btnExportVendasCopiar');
+      const orig = btn.textContent;
+      btn.textContent = '✅ Copiado!';
       btn.style.color = '#34d399';
-      setTimeout(() => { btn.innerHTML = orig; btn.style.color = '#c0c9d9'; }, 2000);
+      setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
+    }).catch(() => {
+      document.getElementById('exportVendasPreview').select();
+      document.execCommand('copy');
     });
   };
 
-  window.exportBaixar = function(){
-    const txt = _gerarTexto();
-    if(!txt || _expSelecionados.size === 0) return;
-    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
+  window.exportVendasBaixar = function(){
+    const txt = document.getElementById('exportVendasPreview').value;
+    if(!txt) return;
+    const now  = new Date();
+    const nome = `vendas_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.txt`;
+    const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
     const a    = document.createElement('a');
-    const data = new Date().toISOString().slice(0,10);
-    a.href     = url;
-    a.download = `pedido-fornecedor-${data}.txt`;
+    a.href     = URL.createObjectURL(blob);
+    a.download = nome;
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(a.href);
   };
 
 })();

@@ -109,8 +109,18 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <!-- PÁGINA VENDAS -->
 <div id="page-vendas" class="page">
 <div class="page-header">
-<div><div class="page-title">Vendas por Produto</div><div class="page-subtitle" id="vendasSubtitle">Carregando...</div></div>
-<span style="font-size:12px;color:#4a5568;" id="vendasCountLabel"></span>
+  <div><div class="page-title">Vendas por Produto</div><div class="page-subtitle" id="vendasSubtitle">Carregando...</div></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span style="font-size:12px;color:#4a5568;" id="vendasCountLabel"></span>
+    <button onclick="abrirModalExportVendas()" style="
+      background:#1e2535;border:1px solid #2a3448;color:#8892a4;
+      font-size:12px;padding:6px 13px;border-radius:8px;cursor:pointer;
+      display:flex;align-items:center;gap:5px;transition:all 0.15s;
+    " onmouseover="this.style.background='#2a3448';this.style.color='#c0c9d9'"
+       onmouseout="this.style.background='#1e2535';this.style.color='#8892a4'">
+      ⬇ Exportar
+    </button>
+  </div>
 </div>
 <div class="vendas-kpi-row">
 <div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value" id="vKpiReceita">—</div></div>
@@ -309,7 +319,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
         <option value="OK">OK</option>
       </select>
 
-      <!-- ✅ NOVO: FILTRO CURVA -->
+      <!-- FILTRO CURVA -->
       <select id="exportFiltroCurva" onchange="renderExportList(0)" style="
         background:#0f1117;border:1px solid #1e2535;border-radius:8px;
         padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;
@@ -387,6 +397,119 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
         📋 Copiar
       </button>
       <button onclick="exportBaixar()" style="
+        background:#6366f1;border:none;color:#fff;
+        font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;
+        transition:opacity 0.15s;
+      " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+        💾 Baixar .txt
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL DE EXPORTAÇÃO DE VENDAS
+     ═══════════════════════════════════════════════ -->
+<div id="exportVendasOverlay" style="
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);
+  z-index:2000;align-items:center;justify-content:center;
+" onclick="fecharModalExportVendas(event)">
+  <div style="
+    background:#161b27;border:1px solid #1e2535;border-radius:16px;
+    padding:28px;width:760px;max-width:96vw;max-height:90vh;
+    overflow-y:auto;position:relative;
+  " onclick="event.stopPropagation()">
+
+    <!-- Cabeçalho -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#fff;">⬇ Exportar Relatório de Vendas</div>
+        <div style="font-size:12px;color:#4a5568;margin-top:3px;" id="exportVSubtitle">Selecione os produtos</div>
+      </div>
+      <span onclick="fecharModalExportVendas()" style="font-size:20px;color:#4a5568;cursor:pointer;line-height:1;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#4a5568'">✕</span>
+    </div>
+
+    <!-- Filtros: curva + busca + ações -->
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+
+      <!-- FILTRO CURVA -->
+      <select id="exportVFiltroCurva" onchange="renderExportVList(0)" style="
+        background:#0f1117;border:1px solid #1e2535;border-radius:8px;
+        padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;
+      ">
+        <option value="">Todas as curvas</option>
+        <option value="A">Curva A</option>
+        <option value="B">Curva B</option>
+        <option value="C">Curva C</option>
+      </select>
+
+      <!-- BUSCA -->
+      <div style="position:relative;flex:1;min-width:160px;">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:13px;">🔍</span>
+        <input id="exportVBusca" oninput="renderExportVList(0)" placeholder="Buscar SKU ou produto..." style="
+          width:100%;background:#0f1117;border:1px solid #1e2535;border-radius:8px;
+          padding:7px 12px 7px 30px;font-size:12px;color:#e2e8f0;outline:none;
+        ">
+      </div>
+
+      <button onclick="exportVSelecionarTudo()" style="
+        background:#1e2535;border:1px solid #2a3448;color:#8892a4;
+        font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;
+      ">✅ Selecionar Tudo</button>
+      <button onclick="exportVLimparTudo()" style="
+        background:#1e2535;border:1px solid #2a3448;color:#8892a4;
+        font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;
+      ">🗑 Limpar Tudo</button>
+    </div>
+
+    <!-- Lista com checkboxes -->
+    <div style="border:1px solid #1e2535;border-radius:10px;overflow:hidden;margin-bottom:12px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#0f1117;">
+            <th style="width:36px;padding:8px 10px;text-align:center;">
+              <input type="checkbox" id="exportVCheckAll" onchange="exportVToggleAll(this.checked)"
+                style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;">
+            </th>
+            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:left;">SKU</th>
+            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:left;">Produto</th>
+            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:center;">Curva</th>
+            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Qtd Vendida</th>
+            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Receita</th>
+            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Ticket Médio</th>
+            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Venda/Dia</th>
+          </tr>
+        </thead>
+        <tbody id="exportVBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Paginação do modal -->
+    <div id="exportVPag" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;"></div>
+
+    <!-- Preview do texto gerado -->
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:#4a5568;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+        Preview — <span id="exportVSelectedCount">0</span> produto(s) selecionado(s)
+      </div>
+      <textarea id="exportVPreview" readonly style="
+        width:100%;height:120px;background:#0f1117;border:1px solid #1e2535;
+        border-radius:8px;padding:10px 12px;font-size:11px;color:#8892a4;
+        font-family:monospace;resize:vertical;outline:none;line-height:1.6;
+      " placeholder="Selecione produtos para gerar o texto..."></textarea>
+    </div>
+
+    <!-- Botões de ação -->
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="exportVCopiar()" id="btnExportVCopiar" style="
+        background:#1e2535;border:1px solid #2a3448;color:#c0c9d9;
+        font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;
+        transition:all 0.15s;
+      " onmouseover="this.style.background='#2a3448'" onmouseout="this.style.background='#1e2535'">
+        📋 Copiar
+      </button>
+      <button onclick="exportVBaixar()" style="
         background:#6366f1;border:none;color:#fff;
         font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;
         transition:opacity 0.15s;
@@ -618,7 +741,7 @@ window.trendCell = function(trend){
 })();
 </script>
 
-<!-- LÓGICA DO MODAL DE EXPORTAÇÃO -->
+<!-- LÓGICA DO MODAL DE EXPORTAÇÃO DE ESTOQUE -->
 <script>
 (function(){
   const PS_EXP = 50;
@@ -651,12 +774,12 @@ window.trendCell = function(trend){
   window.renderExportList = function(pg){
     _expPage = pg || 0;
     const statusFiltro = document.getElementById('exportFiltroStatus').value;
-    const curvaFiltro  = document.getElementById('exportFiltroCurva').value;   // ✅ NOVO
+    const curvaFiltro  = document.getElementById('exportFiltroCurva').value;
     const busca = (document.getElementById('exportBusca').value || '').toLowerCase();
 
     _expDados = (ESTOQUE_DATA || []).filter(r => {
       if(statusFiltro && r.status !== statusFiltro) return false;
-      if(curvaFiltro  && r.curva  !== curvaFiltro)  return false;              // ✅ NOVO
+      if(curvaFiltro  && r.curva  !== curvaFiltro)  return false;
       if(busca && !(r.SKU||'').toLowerCase().includes(busca) && !(r.desc||'').toLowerCase().includes(busca)) return false;
       return true;
     });
@@ -789,6 +912,176 @@ window.trendCell = function(trend){
     const data = new Date().toISOString().slice(0,10);
     a.href     = url;
     a.download = `pedido-fornecedor-${data}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+})();
+</script>
+
+<!-- LÓGICA DO MODAL DE EXPORTAÇÃO DE VENDAS -->
+<script>
+(function(){
+  const PS_EXPV = 50;
+  let _expVDados        = [];
+  let _expVSelecionados = new Set();
+  let _expVPage         = 0;
+
+  function fmtN(v){ return (v||0).toLocaleString('pt-BR'); }
+  function fmt(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  function curvaSpanExpV(c){
+    if(c==='A') return '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#0d2618;color:#34d399;">A</span>';
+    if(c==='B') return '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#1a2f0d;color:#84cc16;">B</span>';
+    return '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#1e2535;color:#8892a4;">C</span>';
+  }
+
+  window.abrirModalExportVendas = function(){
+    document.getElementById('exportVendasOverlay').style.display = 'flex';
+    document.getElementById('exportVFiltroCurva').value = '';
+    document.getElementById('exportVBusca').value       = '';
+    renderExportVList(0);
+  };
+
+  window.fecharModalExportVendas = function(e){
+    if(!e || e.target === document.getElementById('exportVendasOverlay')){
+      document.getElementById('exportVendasOverlay').style.display = 'none';
+    }
+  };
+
+  window.renderExportVList = function(pg){
+    _expVPage = pg || 0;
+    const curvaFiltro = document.getElementById('exportVFiltroCurva').value;
+    const busca = (document.getElementById('exportVBusca').value || '').toLowerCase();
+
+    _expVDados = (DATA ? DATA.produtos.slice() : []).filter(r => {
+      if(curvaFiltro && r.curva !== curvaFiltro) return false;
+      if(busca && !(r.SKU||'').toLowerCase().includes(busca) && !(r.produto||'').toLowerCase().includes(busca)) return false;
+      return true;
+    });
+
+    const total = _expVDados.length;
+    const slice = _expVDados.slice(_expVPage * PS_EXPV, (_expVPage + 1) * PS_EXPV);
+
+    document.getElementById('exportVBody').innerHTML = slice.map(r => {
+      const checked  = _expVSelecionados.has(r.SKU) ? 'checked' : '';
+      const ticket   = r.qtd > 0 ? fmt(r.receita / r.qtd) : '—';
+      return `
+        <tr style="border-top:1px solid #1a2030;cursor:pointer;"
+            onclick="exportVToggleLine('${r.SKU}')">
+          <td style="text-align:center;padding:8px 10px;">
+            <input type="checkbox" data-sku="${r.SKU}" ${checked}
+              onclick="event.stopPropagation();exportVToggleLine('${r.SKU}')"
+              style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;">
+          </td>
+          <td style="padding:8px;font-size:11px;font-weight:700;color:#6366f1;white-space:nowrap;">${r.SKU}</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.produto||''}">${r.produto||'-'}</td>
+          <td style="padding:8px;text-align:center;">${curvaSpanExpV(r.curva||'C')}</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${fmtN(r.qtd||0)}</td>
+          <td style="padding:8px;font-size:12px;font-weight:700;color:#34d399;text-align:right;">${fmt(r.receita||0)}</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${ticket}</td>
+          <td style="padding:8px;font-size:11px;color:#c0c9d9;text-align:right;">${(r.vd||0).toFixed(2)}/dia</td>
+        </tr>`;
+    }).join('');
+
+    const todosNaPagina = slice.every(r => _expVSelecionados.has(r.SKU));
+    document.getElementById('exportVCheckAll').checked = slice.length > 0 && todosNaPagina;
+    document.getElementById('exportVCheckAll').indeterminate =
+      !todosNaPagina && slice.some(r => _expVSelecionados.has(r.SKU));
+
+    _buildExportVPag(total, _expVPage);
+
+    document.getElementById('exportVSubtitle').textContent =
+      `${total} produto(s) encontrado(s) · ${_expVSelecionados.size} selecionado(s)`;
+
+    _atualizarPreviewV();
+  };
+
+  window.exportVToggleLine = function(sku){
+    if(_expVSelecionados.has(sku)) _expVSelecionados.delete(sku);
+    else _expVSelecionados.add(sku);
+    renderExportVList(_expVPage);
+  };
+
+  window.exportVToggleAll = function(checked){
+    const slice = _expVDados.slice(_expVPage * PS_EXPV, (_expVPage + 1) * PS_EXPV);
+    slice.forEach(r => checked ? _expVSelecionados.add(r.SKU) : _expVSelecionados.delete(r.SKU));
+    renderExportVList(_expVPage);
+  };
+
+  window.exportVSelecionarTudo = function(){
+    _expVDados.forEach(r => _expVSelecionados.add(r.SKU));
+    renderExportVList(_expVPage);
+  };
+
+  window.exportVLimparTudo = function(){
+    _expVSelecionados.clear();
+    renderExportVList(_expVPage);
+  };
+
+  function _buildExportVPag(total, pg){
+    const el = document.getElementById('exportVPag');
+    const totalPages = Math.ceil(total / PS_EXPV);
+    if(totalPages <= 1){ el.innerHTML = ''; return; }
+    const s = pg * PS_EXPV + 1, e = Math.min((pg+1) * PS_EXPV, total);
+    let pages = [...Array(totalPages).keys()];
+    if(totalPages > 7){
+      let st = Math.max(0, pg-3);
+      let en = Math.min(totalPages, st+7);
+      if(en-st < 7) st = Math.max(0, en-7);
+      pages = pages.slice(st, en);
+    }
+    el.innerHTML =
+      `<span style="font-size:11px;color:#4a5568;margin-right:4px;">${s}–${e} de ${total}</span>`
+      + `<button class="page-btn${pg===0?' disabled':''}" onclick="renderExportVList(${pg-1})" ${pg===0?'disabled':''}>&#8249;</button>`
+      + pages.map(p2 => `<button class="page-btn${p2===pg?' active':''}" onclick="renderExportVList(${p2})">${p2+1}</button>`).join('')
+      + `<button class="page-btn${pg===totalPages-1?' disabled':''}" onclick="renderExportVList(${pg+1})" ${pg===totalPages-1?'disabled':''}>&#8250;</button>`;
+  }
+
+  function _gerarTextoV(){
+    const linhas = [];
+    linhas.push('SKU / PRODUTO / CURVA / QTD VENDIDA / RECEITA / TICKET MÉDIO / VENDA/DIA');
+    linhas.push('─'.repeat(90));
+    (DATA ? DATA.produtos : [])
+      .filter(r => _expVSelecionados.has(r.SKU))
+      .forEach(r => {
+        const ticket = r.qtd > 0
+          ? 'R$ ' + (r.receita / r.qtd).toLocaleString('pt-BR', {minimumFractionDigits:2})
+          : '—';
+        linhas.push(
+          `${r.SKU} / ${r.produto||'-'} / ${r.curva||'C'} / ${fmtN(r.qtd||0)} un / ${fmt(r.receita||0)} / ${ticket} / ${(r.vd||0).toFixed(2)}/dia`
+        );
+      });
+    return linhas.join('\n');
+  }
+
+  function _atualizarPreviewV(){
+    const count = _expVSelecionados.size;
+    document.getElementById('exportVSelectedCount').textContent = count;
+    document.getElementById('exportVPreview').value = count > 0 ? _gerarTextoV() : '';
+  }
+
+  window.exportVCopiar = function(){
+    const txt = _gerarTextoV();
+    if(!txt || _expVSelecionados.size === 0) return;
+    navigator.clipboard.writeText(txt).then(() => {
+      const btn = document.getElementById('btnExportVCopiar');
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✅ Copiado!';
+      btn.style.color = '#34d399';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.color = '#c0c9d9'; }, 2000);
+    });
+  };
+
+  window.exportVBaixar = function(){
+    const txt = _gerarTextoV();
+    if(!txt || _expVSelecionados.size === 0) return;
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const data = new Date().toISOString().slice(0,10);
+    a.href     = url;
+    a.download = `relatorio-vendas-${data}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };

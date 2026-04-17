@@ -110,7 +110,18 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <div id="page-vendas" class="page">
 <div class="page-header">
 <div><div class="page-title">Vendas por Produto</div><div class="page-subtitle" id="vendasSubtitle">Carregando...</div></div>
-<span style="font-size:12px;color:#4a5568;" id="vendasCountLabel"></span>
+<div style="display:flex;align-items:center;gap:12px;">
+  <span style="font-size:12px;color:#4a5568;" id="vendasCountLabel"></span>
+  <!-- BOTÃO EXPORTAR VENDAS -->
+  <button onclick="abrirModalExportVendas()" style="
+    background:#1e2535;border:1px solid #2a3448;color:#8892a4;
+    font-size:12px;padding:6px 13px;border-radius:8px;cursor:pointer;
+    display:flex;align-items:center;gap:5px;transition:all 0.15s;
+  " onmouseover="this.style.background='#2a3448';this.style.color='#c0c9d9'"
+     onmouseout="this.style.background='#1e2535';this.style.color='#8892a4'">
+    ⬇ Exportar
+  </button>
+</div>
 </div>
 <div class="vendas-kpi-row">
 <div class="kpi-card"><div class="kpi-label">Receita Total</div><div class="kpi-value" id="vKpiReceita">—</div></div>
@@ -193,35 +204,17 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
       </button>
     </div>
   </div>
-
-  <!-- KPIs -->
   <div class="kpi-grid" style="margin-bottom:20px;">
-    <div class="kpi-card">
-      <div class="kpi-label">Total SKUs</div>
-      <div class="kpi-value" id="estKpiTotal">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Rupturas</div>
-      <div class="kpi-value" id="estKpiRuptura" style="color:#f87171;">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Em Risco</div>
-      <div class="kpi-value" id="estKpiRisco" style="color:#fbbf24;">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">OK</div>
-      <div class="kpi-value" id="estKpiOk" style="color:#34d399;">—</div>
-    </div>
+    <div class="kpi-card"><div class="kpi-label">Total SKUs</div><div class="kpi-value" id="estKpiTotal">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Rupturas</div><div class="kpi-value" id="estKpiRuptura" style="color:#f87171;">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Em Risco</div><div class="kpi-value" id="estKpiRisco" style="color:#fbbf24;">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">OK</div><div class="kpi-value" id="estKpiOk" style="color:#34d399;">—</div></div>
   </div>
-
-  <!-- Tabela com paginação -->
   <div class="card" style="padding:0;">
     <div style="padding:14px 18px;border-bottom:1px solid #1e2535;display:flex;justify-content:space-between;align-items:center;">
       <span style="font-size:13px;font-weight:600;color:#c0c9d9;">Produtos em Estoque</span>
       <span style="font-size:12px;color:#4a5568;" id="estoqueTableCount"></span>
     </div>
-
-    <!-- BARRA DE FILTROS -->
     <div style="padding:10px 18px;border-bottom:1px solid #1e2535;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <div style="position:relative;flex:1;min-width:180px;">
         <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:14px;">🔍</span>
@@ -248,22 +241,14 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
         <option value="cobertura_asc">Cobertura ↑</option>
       </select>
     </div>
-
     <div id="estoquePagTop" class="vpag"></div>
     <div style="overflow-x:auto;">
       <table>
         <thead>
           <tr>
             <th style="width:32px;">#</th>
-            <th>SKU</th>
-            <th>Descrição</th>
-            <th>Curva</th>
-            <th>Estoque</th>
-            <th>Status</th>
-            <th>Venda 30d</th>
-            <th>Tendência</th>
-            <th>Sugestão</th>
-            <th>Receita</th>
+            <th>SKU</th><th>Descrição</th><th>Curva</th><th>Estoque</th>
+            <th>Status</th><th>Venda 30d</th><th>Tendência</th><th>Sugestão</th><th>Receita</th>
           </tr>
         </thead>
         <tbody id="estoqueBody"></tbody>
@@ -274,7 +259,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 </div>
 
 <!-- ═══════════════════════════════════════════════
-     MODAL DE EXPORTAÇÃO DE ESTOQUE
+     MODAL DE EXPORTAÇÃO — ESTOQUE
      ═══════════════════════════════════════════════ -->
 <div id="exportOverlay" style="
   display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);
@@ -285,8 +270,6 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
     padding:28px;width:760px;max-width:96vw;max-height:90vh;
     overflow-y:auto;position:relative;
   " onclick="event.stopPropagation()">
-
-    <!-- Cabeçalho -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
       <div>
         <div style="font-size:16px;font-weight:700;color:#fff;">⬇ Exportar Pedido ao Fornecedor</div>
@@ -294,107 +277,123 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
       </div>
       <span onclick="fecharModalExport()" style="font-size:20px;color:#4a5568;cursor:pointer;line-height:1;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#4a5568'">✕</span>
     </div>
-
-    <!-- Filtros: status + curva + busca + ações -->
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
-
-      <!-- FILTRO STATUS -->
-      <select id="exportFiltroStatus" onchange="renderExportList(0)" style="
-        background:#0f1117;border:1px solid #1e2535;border-radius:8px;
-        padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;
-      ">
+      <select id="exportFiltroStatus" onchange="renderExportList(0)" style="background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;">
         <option value="">Todos os status</option>
         <option value="RUPTURA">Ruptura</option>
         <option value="RISCO">Risco</option>
         <option value="OK">OK</option>
       </select>
-
-      <!-- ✅ NOVO: FILTRO CURVA -->
-      <select id="exportFiltroCurva" onchange="renderExportList(0)" style="
-        background:#0f1117;border:1px solid #1e2535;border-radius:8px;
-        padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;
-      ">
+      <select id="exportFiltroCurva" onchange="renderExportList(0)" style="background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;">
         <option value="">Todas as curvas</option>
         <option value="A">Curva A</option>
         <option value="B">Curva B</option>
         <option value="C">Curva C</option>
       </select>
-
-      <!-- BUSCA -->
       <div style="position:relative;flex:1;min-width:160px;">
         <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:13px;">🔍</span>
-        <input id="exportBusca" oninput="renderExportList(0)" placeholder="Buscar SKU ou descrição..." style="
-          width:100%;background:#0f1117;border:1px solid #1e2535;border-radius:8px;
-          padding:7px 12px 7px 30px;font-size:12px;color:#e2e8f0;outline:none;
-        ">
+        <input id="exportBusca" oninput="renderExportList(0)" placeholder="Buscar SKU ou descrição..." style="width:100%;background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:7px 12px 7px 30px;font-size:12px;color:#e2e8f0;outline:none;">
       </div>
-
-      <button onclick="exportSelecionarTudo()" style="
-        background:#1e2535;border:1px solid #2a3448;color:#8892a4;
-        font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;
-      ">✅ Selecionar Tudo</button>
-      <button onclick="exportLimparTudo()" style="
-        background:#1e2535;border:1px solid #2a3448;color:#8892a4;
-        font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;
-      ">🗑 Limpar Tudo</button>
+      <button onclick="exportSelecionarTudo()" style="background:#1e2535;border:1px solid #2a3448;color:#8892a4;font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;">✅ Selecionar Tudo</button>
+      <button onclick="exportLimparTudo()" style="background:#1e2535;border:1px solid #2a3448;color:#8892a4;font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;">🗑 Limpar Tudo</button>
     </div>
-
-    <!-- Lista com checkboxes -->
     <div style="border:1px solid #1e2535;border-radius:10px;overflow:hidden;margin-bottom:12px;">
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr style="background:#0f1117;">
-            <th style="width:36px;padding:8px 10px;text-align:center;">
-              <input type="checkbox" id="exportCheckAll" onchange="exportToggleAll(this.checked)"
-                style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;">
-            </th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:left;">SKU</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:left;">Descrição</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:center;">Curva</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Estoque</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Sugestão</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Venda 30d</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:right;">Cobertura</th>
-            <th style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#4a5568;padding:8px 8px;text-align:center;">Status</th>
+            <th style="width:36px;padding:8px 10px;text-align:center;"><input type="checkbox" id="exportCheckAll" onchange="exportToggleAll(this.checked)" style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;"></th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:left;">SKU</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:left;">Descrição</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:center;">Curva</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Estoque</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Sugestão</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Venda 30d</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Cobertura</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:center;">Status</th>
           </tr>
         </thead>
         <tbody id="exportBody"></tbody>
       </table>
     </div>
-
-    <!-- Paginação do modal -->
     <div id="exportPag" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;"></div>
-
-    <!-- Preview do texto gerado -->
     <div style="margin-bottom:12px;">
       <div style="font-size:11px;color:#4a5568;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
         Preview — <span id="exportSelectedCount">0</span> produto(s) selecionado(s)
       </div>
-      <textarea id="exportPreview" readonly style="
-        width:100%;height:120px;background:#0f1117;border:1px solid #1e2535;
-        border-radius:8px;padding:10px 12px;font-size:11px;color:#8892a4;
-        font-family:monospace;resize:vertical;outline:none;line-height:1.6;
-      " placeholder="Selecione produtos para gerar o texto..."></textarea>
+      <textarea id="exportPreview" readonly style="width:100%;height:120px;background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:10px 12px;font-size:11px;color:#8892a4;font-family:monospace;resize:vertical;outline:none;line-height:1.6;" placeholder="Selecione produtos para gerar o texto..."></textarea>
     </div>
-
-    <!-- Botões de ação -->
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button onclick="exportCopiar()" id="btnExportCopiar" style="
-        background:#1e2535;border:1px solid #2a3448;color:#c0c9d9;
-        font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;
-        transition:all 0.15s;
-      " onmouseover="this.style.background='#2a3448'" onmouseout="this.style.background='#1e2535'">
-        📋 Copiar
-      </button>
-      <button onclick="exportBaixar()" style="
-        background:#6366f1;border:none;color:#fff;
-        font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;
-        transition:opacity 0.15s;
-      " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-        💾 Baixar .txt
-      </button>
+      <button onclick="exportCopiar()" id="btnExportCopiar" style="background:#1e2535;border:1px solid #2a3448;color:#c0c9d9;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='#2a3448'" onmouseout="this.style.background='#1e2535'">📋 Copiar</button>
+      <button onclick="exportBaixar()" style="background:#6366f1;border:none;color:#fff;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">💾 Baixar .txt</button>
     </div>
+  </div>
+</div>
 
+<!-- ═══════════════════════════════════════════════
+     MODAL DE EXPORTAÇÃO — VENDAS
+     ═══════════════════════════════════════════════ -->
+<div id="exportVendasOverlay" style="
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);
+  z-index:2000;align-items:center;justify-content:center;
+" onclick="fecharModalExportVendas(event)">
+  <div style="
+    background:#161b27;border:1px solid #1e2535;border-radius:16px;
+    padding:28px;width:820px;max-width:96vw;max-height:90vh;
+    overflow-y:auto;position:relative;
+  " onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#fff;">⬇ Exportar Relatório de Vendas</div>
+        <div style="font-size:12px;color:#4a5568;margin-top:3px;" id="exportVendasSubtitle">Selecione os produtos</div>
+      </div>
+      <span onclick="fecharModalExportVendas()" style="font-size:20px;color:#4a5568;cursor:pointer;line-height:1;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#4a5568'">✕</span>
+    </div>
+    <!-- Filtros -->
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+      <select id="exportVendasFiltroCurva" onchange="renderExportVendasList(0)" style="background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:7px 12px;font-size:12px;color:#e2e8f0;outline:none;cursor:pointer;">
+        <option value="">Todas as curvas</option>
+        <option value="A">Curva A</option>
+        <option value="B">Curva B</option>
+        <option value="C">Curva C</option>
+      </select>
+      <div style="position:relative;flex:1;min-width:160px;">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#4a5568;font-size:13px;">🔍</span>
+        <input id="exportVendasBusca" oninput="renderExportVendasList(0)" placeholder="Buscar SKU ou produto..." style="width:100%;background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:7px 12px 7px 30px;font-size:12px;color:#e2e8f0;outline:none;">
+      </div>
+      <button onclick="exportVendasSelecionarTudo()" style="background:#1e2535;border:1px solid #2a3448;color:#8892a4;font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;">✅ Selecionar Tudo</button>
+      <button onclick="exportVendasLimparTudo()" style="background:#1e2535;border:1px solid #2a3448;color:#8892a4;font-size:11px;padding:6px 11px;border-radius:7px;cursor:pointer;">🗑 Limpar Tudo</button>
+    </div>
+    <!-- Tabela -->
+    <div style="border:1px solid #1e2535;border-radius:10px;overflow:hidden;margin-bottom:12px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#0f1117;">
+            <th style="width:36px;padding:8px 10px;text-align:center;"><input type="checkbox" id="exportVendasCheckAll" onchange="exportVendasToggleAll(this.checked)" style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;"></th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:left;">SKU</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:left;">Produto</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:center;">Curva</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Qtd Vendida</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Receita</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Ticket Médio</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Venda/Dia</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Cobertura</th>
+            <th style="font-size:10px;text-transform:uppercase;color:#4a5568;padding:8px;text-align:right;">Estoque</th>
+          </tr>
+        </thead>
+        <tbody id="exportVendasBody"></tbody>
+      </table>
+    </div>
+    <div id="exportVendasPag" style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;"></div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:#4a5568;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+        Preview — <span id="exportVendasSelectedCount">0</span> produto(s) selecionado(s)
+      </div>
+      <textarea id="exportVendasPreview" readonly style="width:100%;height:120px;background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:10px 12px;font-size:11px;color:#8892a4;font-family:monospace;resize:vertical;outline:none;line-height:1.6;" placeholder="Selecione produtos para gerar o texto..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="exportVendasCopiar()" id="btnExportVendasCopiar" style="background:#1e2535;border:1px solid #2a3448;color:#c0c9d9;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='#2a3448'" onmouseout="this.style.background='#1e2535'">📋 Copiar</button>
+      <button onclick="exportVendasBaixar()" style="background:#6366f1;border:none;color:#fff;font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">💾 Baixar .txt</button>
+    </div>
   </div>
 </div>
 
@@ -438,7 +437,7 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;gap
 <script src="js/vendas.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════
-     TENDÊNCIA GLOBAL — compartilhada por Estoque e Vendas
+     TENDÊNCIA GLOBAL
      ═══════════════════════════════════════════════════════ -->
 <script>
 window.calcTrend = function(qtd30, qtd60, qtd90){
@@ -462,18 +461,12 @@ window.trendCell = function(trend){
   const t = Number(trend) || 0;
   const abs = Math.abs(t);
   let color, arrow, label;
-  if(t > 10){
-    color = '#34d399'; arrow = '▲'; label = '+' + t + '%';
-  } else if(t < -10){
-    color = '#f87171'; arrow = '▼'; label = t + '%';
-  } else {
-    color = '#8892a4'; arrow = '➔'; label = (t >= 0 ? '+' : '') + t + '%';
-  }
+  if(t > 10){       color = '#34d399'; arrow = '▲'; label = '+' + t + '%'; }
+  else if(t < -10){ color = '#f87171'; arrow = '▼'; label = t + '%'; }
+  else {            color = '#8892a4'; arrow = '➔'; label = (t >= 0 ? '+' : '') + t + '%'; }
   const barPct   = Math.min(abs, 100);
   const barColor = t > 10 ? '#34d399' : t < -10 ? '#f87171' : '#4a5568';
-  const tip = t !== 0
-    ? `Variação de vendas: ${label} (base 90d ou 60d)`
-    : 'Sem variação significativa';
+  const tip = t !== 0 ? `Variação de vendas: ${label} (base 90d ou 60d)` : 'Sem variação significativa';
   return `
     <div title="${tip}" style="display:flex;flex-direction:column;gap:4px;min-width:100px;max-width:130px;">
       <div style="display:flex;align-items:center;gap:5px;">
@@ -487,7 +480,9 @@ window.trendCell = function(trend){
 };
 </script>
 
-<!-- Estoque: paginação, KPIs e filtros -->
+<!-- ═══════════════════════════════════════════════
+     ESTOQUE: paginação, KPIs e filtros
+     ═══════════════════════════════════════════════ -->
 <script>
 (function(){
   const PS = 100;
@@ -502,17 +497,13 @@ window.trendCell = function(trend){
     if(c==='B') return '<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>';
     return '<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>';
   }
-
   function statusBadgeEst(s){
     if(s==='RUPTURA') return '<span class="badge-ruptura">⚠ Ruptura</span>';
     if(s==='RISCO')   return '<span class="badge-risco">⚠ Risco</span>';
     return '<span class="badge-ok">✓ OK</span>';
   }
-
   function resolveTrend(r){
-    if(r.kpi_trend !== undefined && r.kpi_trend !== null && r.kpi_trend !== ''){
-      return Number(r.kpi_trend);
-    }
+    if(r.kpi_trend !== undefined && r.kpi_trend !== null && r.kpi_trend !== '') return Number(r.kpi_trend);
     return window.calcTrend(r.qtd30, r.qtd60, r.qtd90);
   }
 
@@ -521,25 +512,17 @@ window.trendCell = function(trend){
     const status = document.getElementById('estFiltroStatus').value;
     const curva  = document.getElementById('estFiltroCurva').value;
     const ordem  = document.getElementById('estFiltroOrdem').value;
-
     let data = (ESTOQUE_DATA || []).filter(r => {
       if(q && !(r.SKU||'').toLowerCase().includes(q) && !(r.desc||'').toLowerCase().includes(q)) return false;
       if(status && r.status !== status) return false;
       if(curva  && r.curva  !== curva)  return false;
       return true;
     });
-
-    if(ordem === 'az')
-      data.sort((a,b) => (a.desc||'').localeCompare(b.desc||'', 'pt-BR'));
-    else if(ordem === 'za')
-      data.sort((a,b) => (b.desc||'').localeCompare(a.desc||'', 'pt-BR'));
-    else if(ordem === 'estoque_asc')
-      data.sort((a,b) => (a.estoque||0) - (b.estoque||0));
-    else if(ordem === 'estoque_desc')
-      data.sort((a,b) => (b.estoque||0) - (a.estoque||0));
-    else if(ordem === 'cobertura_asc')
-      data.sort((a,b) => (a.cobertura||0) - (b.cobertura||0));
-
+    if(ordem==='az')           data.sort((a,b)=>(a.desc||'').localeCompare(b.desc||'','pt-BR'));
+    else if(ordem==='za')      data.sort((a,b)=>(b.desc||'').localeCompare(a.desc||'','pt-BR'));
+    else if(ordem==='estoque_asc')  data.sort((a,b)=>(a.estoque||0)-(b.estoque||0));
+    else if(ordem==='estoque_desc') data.sort((a,b)=>(b.estoque||0)-(a.estoque||0));
+    else if(ordem==='cobertura_asc')data.sort((a,b)=>(a.cobertura||0)-(b.cobertura||0));
     _estDadosFiltrados = data;
     renderEstoquePage(0);
   };
@@ -552,30 +535,23 @@ window.trendCell = function(trend){
       if(totalPages <= 1){ el.innerHTML=''; return; }
       const s = pg*PS+1, e = Math.min((pg+1)*PS, total);
       let pages = [...Array(totalPages).keys()];
-      if(totalPages > 7){
-        let st = Math.max(0, pg-3);
-        let en = Math.min(totalPages, st+7);
-        if(en-st < 7) st = Math.max(0, en-7);
-        pages = pages.slice(st, en);
-      }
+      if(totalPages > 7){ let st=Math.max(0,pg-3); let en=Math.min(totalPages,st+7); if(en-st<7)st=Math.max(0,en-7); pages=pages.slice(st,en); }
       el.innerHTML =
         `<span style="font-size:12px;color:#4a5568;margin-right:6px;">${s}–${e} de ${total}</span>`
         +`<button class="page-btn${pg===0?' disabled':''}" onclick="window._goEstPage(${pg-1})" ${pg===0?'disabled':''}>&#8249;</button>`
         +pages.map(p2=>`<button class="page-btn${p2===pg?' active':''}" onclick="window._goEstPage(${p2})">${p2+1}</button>`).join('')
         +`<button class="page-btn${pg===totalPages-1?' disabled':''}" onclick="window._goEstPage(${pg+1})" ${pg===totalPages-1?'disabled':''}>&#8250;</button>`;
     };
-    buildPag('estoquePagTop');
-    buildPag('estoquePagBot');
+    buildPag('estoquePagTop'); buildPag('estoquePagBot');
   }
 
   function renderEstoquePage(pg){
     _estPage = pg || 0;
     const data  = _estDadosFiltrados;
     const slice = data.slice(_estPage*PS, (_estPage+1)*PS);
-
-    document.getElementById('estoqueBody').innerHTML = slice.map((r, i) => `
+    document.getElementById('estoqueBody').innerHTML = slice.map((r,i) => `
       <tr onclick="openModal('${r.SKU}')">
-        <td class="rank">${_estPage*PS + i + 1}</td>
+        <td class="rank">${_estPage*PS+i+1}</td>
         <td><span class="sku-tag">${r.SKU}</span></td>
         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.desc||''}">${r.desc||'-'}</td>
         <td>${curvaSpan(r.curva||'C')}</td>
@@ -586,30 +562,21 @@ window.trendCell = function(trend){
         <td style="color:#6366f1;font-weight:600;">${fmtN(r.sugestao||0)} un</td>
         <td style="color:#34d399;">${fmt(r.receita||0)}</td>
       </tr>`).join('');
-
     document.getElementById('estoqueTableCount').textContent = data.length + ' SKUs';
     document.getElementById('estoqueCountLabel').textContent = data.length + ' SKUs';
     buildEstoquePag(data.length, _estPage);
   }
 
   function renderEstoqueKpis(){
-    const data    = ESTOQUE_DATA || [];
-    const total   = data.length;
-    const ruptura = data.filter(r => r.status === 'RUPTURA').length;
-    const risco   = data.filter(r => r.status === 'RISCO').length;
-    const ok      = data.filter(r => r.status === 'OK').length;
-
-    document.getElementById('estKpiTotal').textContent   = fmtN(total);
-    document.getElementById('estKpiRuptura').textContent = fmtN(ruptura);
-    document.getElementById('estKpiRisco').textContent   = fmtN(risco);
-    document.getElementById('estKpiOk').textContent      = fmtN(ok);
+    const data = ESTOQUE_DATA || [];
+    const fmtV = v => (v||0).toLocaleString('pt-BR');
+    document.getElementById('estKpiTotal').textContent   = fmtV(data.length);
+    document.getElementById('estKpiRuptura').textContent = fmtV(data.filter(r=>r.status==='RUPTURA').length);
+    document.getElementById('estKpiRisco').textContent   = fmtV(data.filter(r=>r.status==='RISCO').length);
+    document.getElementById('estKpiOk').textContent      = fmtV(data.filter(r=>r.status==='OK').length);
   }
 
-  window._goEstPage = function(pg){
-    renderEstoquePage(pg);
-    window.scrollTo(0,0);
-  };
-
+  window._goEstPage = function(pg){ renderEstoquePage(pg); window.scrollTo(0,0); };
   window.renderEstoque = function(){
     _estDadosFiltrados = ESTOQUE_DATA || [];
     renderEstoqueKpis();
@@ -618,13 +585,15 @@ window.trendCell = function(trend){
 })();
 </script>
 
-<!-- LÓGICA DO MODAL DE EXPORTAÇÃO -->
+<!-- ═══════════════════════════════════════════════
+     MODAL EXPORTAÇÃO — ESTOQUE
+     ═══════════════════════════════════════════════ -->
 <script>
 (function(){
   const PS_EXP = 50;
-  let _expDados       = [];
+  let _expDados        = [];
   let _expSelecionados = new Set();
-  let _expPage        = 0;
+  let _expPage         = 0;
 
   function fmtN(v){ return (v||0).toLocaleString('pt-BR'); }
 
@@ -641,42 +610,36 @@ window.trendCell = function(trend){
     document.getElementById('exportBusca').value        = '';
     renderExportList(0);
   };
-
   window.fecharModalExport = function(e){
-    if(!e || e.target === document.getElementById('exportOverlay')){
+    if(!e || e.target === document.getElementById('exportOverlay'))
       document.getElementById('exportOverlay').style.display = 'none';
-    }
   };
 
   window.renderExportList = function(pg){
     _expPage = pg || 0;
     const statusFiltro = document.getElementById('exportFiltroStatus').value;
-    const curvaFiltro  = document.getElementById('exportFiltroCurva').value;   // ✅ NOVO
+    const curvaFiltro  = document.getElementById('exportFiltroCurva').value;
     const busca = (document.getElementById('exportBusca').value || '').toLowerCase();
-
     _expDados = (ESTOQUE_DATA || []).filter(r => {
       if(statusFiltro && r.status !== statusFiltro) return false;
-      if(curvaFiltro  && r.curva  !== curvaFiltro)  return false;              // ✅ NOVO
+      if(curvaFiltro  && r.curva  !== curvaFiltro)  return false;
       if(busca && !(r.SKU||'').toLowerCase().includes(busca) && !(r.desc||'').toLowerCase().includes(busca)) return false;
       return true;
     });
-
     const total = _expDados.length;
-    const slice = _expDados.slice(_expPage * PS_EXP, (_expPage + 1) * PS_EXP);
-
+    const slice = _expDados.slice(_expPage*PS_EXP, (_expPage+1)*PS_EXP);
     document.getElementById('exportBody').innerHTML = slice.map(r => {
-      const checked    = _expSelecionados.has(r.SKU) ? 'checked' : '';
-      const isRupt     = r.status === 'RUPTURA';
-      const isRisco    = r.status === 'RISCO';
-      const rowStyle   = isRupt ? 'background:#1a0f14;' : isRisco ? 'background:#161205;' : '';
+      const checked     = _expSelecionados.has(r.SKU) ? 'checked' : '';
+      const isRupt      = r.status === 'RUPTURA';
+      const isRisco     = r.status === 'RISCO';
+      const rowStyle    = isRupt ? 'background:#1a0f14;' : isRisco ? 'background:#161205;' : '';
       const statusLabel = isRupt
         ? '<span style="font-size:10px;font-weight:700;color:#f87171;">⚠ RUPTURA</span>'
         : isRisco
           ? '<span style="font-size:10px;font-weight:700;color:#fbbf24;">⚠ RISCO</span>'
           : '<span style="font-size:10px;font-weight:700;color:#34d399;">✓ OK</span>';
       return `
-        <tr style="border-top:1px solid #1a2030;${rowStyle}cursor:pointer;"
-            onclick="exportToggleLine('${r.SKU}')">
+        <tr style="border-top:1px solid #1a2030;${rowStyle}cursor:pointer;" onclick="exportToggleLine('${r.SKU}')">
           <td style="text-align:center;padding:8px 10px;">
             <input type="checkbox" data-sku="${r.SKU}" ${checked}
               onclick="event.stopPropagation();exportToggleLine('${r.SKU}')"
@@ -692,109 +655,23 @@ window.trendCell = function(trend){
           <td style="padding:8px;text-align:center;">${statusLabel}</td>
         </tr>`;
     }).join('');
-
     const todosNaPagina = slice.every(r => _expSelecionados.has(r.SKU));
     document.getElementById('exportCheckAll').checked = slice.length > 0 && todosNaPagina;
-    document.getElementById('exportCheckAll').indeterminate =
-      !todosNaPagina && slice.some(r => _expSelecionados.has(r.SKU));
-
+    document.getElementById('exportCheckAll').indeterminate = !todosNaPagina && slice.some(r => _expSelecionados.has(r.SKU));
     _buildExportPag(total, _expPage);
-
-    document.getElementById('exportSubtitle').textContent =
-      `${total} produto(s) encontrado(s) · ${_expSelecionados.size} selecionado(s)`;
-
+    document.getElementById('exportSubtitle').textContent = `${total} produto(s) encontrado(s) · ${_expSelecionados.size} selecionado(s)`;
     _atualizarPreview();
   };
 
-  window.exportToggleLine = function(sku){
-    if(_expSelecionados.has(sku)) _expSelecionados.delete(sku);
-    else _expSelecionados.add(sku);
-    renderExportList(_expPage);
-  };
-
-  window.exportToggleAll = function(checked){
-    const slice = _expDados.slice(_expPage * PS_EXP, (_expPage + 1) * PS_EXP);
-    slice.forEach(r => checked ? _expSelecionados.add(r.SKU) : _expSelecionados.delete(r.SKU));
-    renderExportList(_expPage);
-  };
-
-  window.exportSelecionarTudo = function(){
-    _expDados.forEach(r => _expSelecionados.add(r.SKU));
-    renderExportList(_expPage);
-  };
-
-  window.exportLimparTudo = function(){
-    _expSelecionados.clear();
-    renderExportList(_expPage);
-  };
+  window.exportToggleLine  = function(sku){ _expSelecionados.has(sku) ? _expSelecionados.delete(sku) : _expSelecionados.add(sku); renderExportList(_expPage); };
+  window.exportToggleAll   = function(c){ const sl=_expDados.slice(_expPage*PS_EXP,(_expPage+1)*PS_EXP); sl.forEach(r=>c?_expSelecionados.add(r.SKU):_expSelecionados.delete(r.SKU)); renderExportList(_expPage); };
+  window.exportSelecionarTudo = function(){ _expDados.forEach(r=>_expSelecionados.add(r.SKU)); renderExportList(_expPage); };
+  window.exportLimparTudo     = function(){ _expSelecionados.clear(); renderExportList(_expPage); };
 
   function _buildExportPag(total, pg){
     const el = document.getElementById('exportPag');
-    const totalPages = Math.ceil(total / PS_EXP);
-    if(totalPages <= 1){ el.innerHTML = ''; return; }
-    const s = pg * PS_EXP + 1, e = Math.min((pg+1) * PS_EXP, total);
-    let pages = [...Array(totalPages).keys()];
-    if(totalPages > 7){
-      let st = Math.max(0, pg-3);
-      let en = Math.min(totalPages, st+7);
-      if(en-st < 7) st = Math.max(0, en-7);
-      pages = pages.slice(st, en);
-    }
-    el.innerHTML =
-      `<span style="font-size:11px;color:#4a5568;margin-right:4px;">${s}–${e} de ${total}</span>`
-      + `<button class="page-btn${pg===0?' disabled':''}" onclick="renderExportList(${pg-1})" ${pg===0?'disabled':''}>&#8249;</button>`
-      + pages.map(p2 => `<button class="page-btn${p2===pg?' active':''}" onclick="renderExportList(${p2})">${p2+1}</button>`).join('')
-      + `<button class="page-btn${pg===totalPages-1?' disabled':''}" onclick="renderExportList(${pg+1})" ${pg===totalPages-1?'disabled':''}>&#8250;</button>`;
-  }
-
-  function _gerarTexto(){
-    const linhas = [];
-    linhas.push('SKU / DESCRIÇÃO / CURVA / ESTOQUE / SUGESTÃO / VENDA 30D / COBERTURA / STATUS');
-    linhas.push('─'.repeat(90));
-    (ESTOQUE_DATA || [])
-      .filter(r => _expSelecionados.has(r.SKU))
-      .forEach(r => {
-        const status = r.status === 'RUPTURA' ? 'RUPTURA' : r.status === 'RISCO' ? 'RISCO' : 'OK';
-        linhas.push(
-          `${r.SKU} / ${r.desc||'-'} / ${r.curva||'C'} / ${fmtN(r.estoque||0)} un / ${fmtN(r.sugestao||0)} un / ${fmtN(r.qtd30||0)} un / ${r.cobertura||0} dias / ${status}`
-        );
-      });
-    return linhas.join('\n');
-  }
-
-  function _atualizarPreview(){
-    const count = _expSelecionados.size;
-    document.getElementById('exportSelectedCount').textContent = count;
-    document.getElementById('exportPreview').value = count > 0 ? _gerarTexto() : '';
-  }
-
-  window.exportCopiar = function(){
-    const txt = _gerarTexto();
-    if(!txt || _expSelecionados.size === 0) return;
-    navigator.clipboard.writeText(txt).then(() => {
-      const btn = document.getElementById('btnExportCopiar');
-      const orig = btn.innerHTML;
-      btn.innerHTML = '✅ Copiado!';
-      btn.style.color = '#34d399';
-      setTimeout(() => { btn.innerHTML = orig; btn.style.color = '#c0c9d9'; }, 2000);
-    });
-  };
-
-  window.exportBaixar = function(){
-    const txt = _gerarTexto();
-    if(!txt || _expSelecionados.size === 0) return;
-    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    const data = new Date().toISOString().slice(0,10);
-    a.href     = url;
-    a.download = `pedido-fornecedor-${data}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-})();
-</script>
-
-</body>
-</html>
+    const totalPages = Math.ceil(total/PS_EXP);
+    if(totalPages<=1){el.innerHTML='';return;}
+    const s=pg*PS_EXP+1, e=Math.min((pg+1)*PS_EXP,total);
+    let pages=[...Array(totalPages).keys()];
+    if(totalPages>7){let st=Math.max(0,pg-3);let en=Math.min(totalPages,st+7);if(en-st

@@ -51,8 +51,6 @@ async function loadData(){
     KPIS_ESTOQUE  = json.kpisEstoque || {};
     RUPTURAS_DATA = json.ruptura     || [];
 
-    // Normaliza chaves de insights: aceita tanto topAlta/topQueda (API)
-    // quanto alta/queda (legado)
     const ins = json.insights || {};
     INSIGHTS_DATA = {
       alta:        ins.alta        || ins.topAlta        || [],
@@ -74,7 +72,8 @@ async function loadData(){
     initDashboard();
     initVendas();
     renderInsights();
-    renderEstoque();
+    // ── renderEstoque() chama window.renderEstoque definida no HTML ──
+    if(typeof window.renderEstoque === 'function') window.renderEstoque();
     if(RUPTURAS_DATA.length)renderRupturas(RUPTURAS_DATA);
 
   }catch(err){
@@ -86,8 +85,6 @@ async function loadData(){
 
 // ---- KPIs DASHBOARD ----
 function initDashboard(){
-  // kpis.skus: usa skuRuptura como fallback para total de SKUs no estoque,
-  // mas o correto é o total de produtos
   const totalSkus = DATA.kpis.skus !== undefined ? DATA.kpis.skus : DATA.produtos.length;
   document.getElementById('kpiReceita').textContent   =fmt(DATA.kpis.receita);
   document.getElementById('kpiPedidos').textContent   =fmtN(DATA.kpis.pedidos);
@@ -101,7 +98,6 @@ function initDashboard(){
     el.textContent=(n>=0?'+':'')+n.toFixed(1)+(suffix||'%');
     el.className='kpi-badge '+(n>=0?'up':'down');
   };
-  // crescimento como variação de receita; pedidosVar e ticketVar opcionais
   setBadge('kpiReceitaBadge', DATA.kpis.receitaVar !== undefined ? DATA.kpis.receitaVar : DATA.kpis.crescimento);
   setBadge('kpiPedidosBadge', DATA.kpis.pedidosVar);
   setBadge('kpiTicketBadge',  DATA.kpis.ticketVar);
@@ -118,7 +114,6 @@ function initDashboard(){
     document.getElementById('dashSubtitle').textContent=fmtM(first)+' – '+fmtM(last);
   }
 
-  // ---- CHARTS ----
   const receipts=DATA.monthly.map(m=>m.receita);
   const chartCfg=(type)=>({
     type,
@@ -155,7 +150,6 @@ function initDashboard(){
     options:{responsive:true,cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:'#8892a4',font:{size:11},padding:10}}}}
   });
 
-  // ---- PRODUTOS TABLE ----
   let allProds=DATA.produtos.slice();
   let current=allProds.slice();
   let sortCol='receita',sortDir=-1,curPage=0;
@@ -202,7 +196,6 @@ function initDashboard(){
     buildPag('pagBot',current.length,curPage,fn);
   };
 
-  // ---- SORT ----
   window.sortTable=(col)=>{
     if(sortCol===col)sortDir*=-1; else{sortCol=col;sortDir=-1;}
     document.querySelectorAll('[id^="sort-"]').forEach(el=>{el.textContent='↕';el.classList.remove('asc','desc');});
@@ -212,7 +205,6 @@ function initDashboard(){
     render(0);
   };
 
-  // ---- FILTER ----
   window.filterTable=()=>{
     const q=(document.getElementById('searchInput').value||'').toLowerCase();
     const curva=document.getElementById('curvaFilter').value;
@@ -225,7 +217,6 @@ function initDashboard(){
     render(0);
   };
 
-  // ---- ALERTS — usa RUPTURAS_DATA que agora inclui status/cobertura/sugestao/vd ----
   const alerts=RUPTURAS_DATA.slice(0,10);
   document.getElementById('alertSubtitle').textContent=RUPTURAS_DATA.length+' SKUs em alerta';
   document.getElementById('alertList').innerHTML=alerts.map(r=>{
@@ -317,62 +308,6 @@ function renderRupturas(data){
     </div>`;
 }
 
-// ---- ESTOQUE RENDER ----
-function renderEstoque(){
-  const page = document.getElementById('page-estoque');
-  if (!page) return;
-
-  const kpis = KPIS_ESTOQUE;
-  const data = ESTOQUE_DATA;
-
-  const curvaSpan = c => c === 'A'
-    ? `<span class="kpi-badge" style="font-size:10px;background:#0d2618;color:#34d399;">A</span>`
-    : c === 'B'
-      ? `<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>`
-      : `<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>`;
-
-  const statusBadgeEst = s => s === 'RUPTURA'
-    ? '<span class="badge-ruptura">⚠ Ruptura</span>'
-    : s === 'RISCO'
-      ? '<span class="badge-risco">⚠ Risco</span>'
-      : '<span class="badge-ok">✓ OK</span>';
-
-  page.innerHTML = `
-    <div class="page-header">
-      <div><div class="page-title">Estoque</div><div class="page-subtitle">Visão geral do inventário</div></div>
-      <span style="font-size:12px;color:#4a5568;">${data.length} SKUs</span>
-    </div>
-    <div class="kpi-grid" style="margin-bottom:20px;">
-      <div class="kpi-card"><div class="kpi-label">Total SKUs</div><div class="kpi-value">${fmtN(kpis.total||0)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Rupturas</div><div class="kpi-value" style="color:#f87171;">${fmtN(kpis.ruptura||0)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Em Risco</div><div class="kpi-value" style="color:#fbbf24;">${fmtN(kpis.risco||0)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">OK</div><div class="kpi-value" style="color:#34d399;">${fmtN(kpis.ok||0)}</div></div>
-    </div>
-    <div class="card" style="padding:0;">
-      <div style="overflow-x:auto;">
-        <table>
-          <thead><tr>
-            <th>#</th><th>SKU</th><th>Descrição</th><th>Curva</th>
-            <th>Estoque</th><th>Status</th><th>Venda 30d</th><th>Sugestão</th><th>Receita</th>
-          </tr></thead>
-          <tbody>${data.map((r, i) => `
-            <tr onclick="openModal('${r.SKU}')">
-              <td class="rank">${i + 1}</td>
-              <td><span class="sku-tag">${r.SKU}</span></td>
-              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.desc||''}">${r.desc || '-'}</td>
-              <td>${curvaSpan(r.curva || 'C')}</td>
-              <td>${fmtN(r.estoque || 0)}</td>
-              <td>${statusBadgeEst(r.status || 'OK')}</td>
-              <td>${fmtN(r.qtd30 || 0)} un</td>
-              <td style="color:#6366f1;font-weight:600;">${fmtN(r.sugestao || 0)} un</td>
-              <td style="color:#34d399;">${fmt(r.receita || 0)}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>`;
-}
-
 // ---- MODAL ----
 function openModal(sku){
   const p=DATA.produtos.find(x=>x.SKU===sku);
@@ -393,7 +328,7 @@ function openModal(sku){
     return{mes:k,receita:item?item.receita:0,qtd:item?item.qtd:0};
   }):[]).sort((a,b)=>a.mes.localeCompare(b.mes));
 
-  document.getElementById('modalTabs').innerHTML='<div class="tab active" id="tabChart" onclick="switchModalTab(\'chart\')">Gráfico</div><div class="tab" id="tabInfo" onclick="switchModalTab(\'info\')">Detalhes</div>';
+  document.getElementById('modalTabs').innerHTML='<div class="tab active" id="tabChart" onclick="switchModalTab(\\'chart\\')">Gráfico</div><div class="tab" id="tabInfo" onclick="switchModalTab(\\'info\\')">Detalhes</div>';
 
   const renderChart=()=>{
     document.getElementById('modalTabContent').innerHTML='<canvas id="modalChart" height="90"></canvas>';

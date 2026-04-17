@@ -236,22 +236,26 @@ function initDashboard(){
 
 // ---- INSIGHTS RENDER ----
 function renderInsights(){
-  const fmt2=(v)=>'R$'+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const curvaSpan=(c)=>`<span class="kpi-badge" style="font-size:11px;${c==='A'?'background:#0d2618;color:#34d399;':c==='B'?'background:#1a2f0d;color:#84cc16;':'background:#1e2535;color:#8892a4;'}">${c}</span>`;
   const D=INSIGHTS_DATA;
 
+  const totalParado=(D.parado||[]).length;
+
   const sections=[
-    {key:'alta',   title:'📈 Alta de Vendas',   color:'#34d399', items:D.alta   ||[]},
-    {key:'queda',  title:'📉 Queda de Vendas',  color:'#f87171', items:D.queda  ||[]},
-    {key:'parado', title:'⏸️ Estoque Parado',  color:'#fbbf24', items:D.parado ||[]},
-    {key:'oportunidade',title:'⭐ Oportunidade', color:'#818cf8', items:D.oportunidade||[]},
+    {key:'alta',        title:'📈 Alta de Vendas',  color:'#34d399', items:(D.alta        ||[]),              total:null},
+    {key:'queda',       title:'📉 Queda de Vendas', color:'#f87171', items:(D.queda       ||[]),              total:null},
+    {key:'parado',      title:'⏸️ Estoque Parado', color:'#fbbf24', items:(D.parado      ||[]).slice(0,10),  total:totalParado},
+    {key:'oportunidade',title:'⭐ Oportunidade',    color:'#818cf8', items:(D.oportunidade||[]),              total:null},
   ];
 
   document.getElementById('insightsContent').innerHTML=sections.map(s=>{
     if(!s.items.length)return'';
+    const subtitle = s.total !== null
+      ? `${s.items.length} produto(s) exibidos (top 10 de ${s.total})`
+      : `${s.items.length} produto(s)`;
     return`<div class="card" style="margin-bottom:16px;">
       <div class="card-title" style="color:${s.color};">${s.title}</div>
-      <div class="card-subtitle">${s.items.length} produto(s)</div>
+      <div class="card-subtitle">${subtitle}</div>
       <div class="insight-list">${s.items.map(it=>`
         <div class="insight-item">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
@@ -328,7 +332,7 @@ function openModal(sku){
     return{mes:k,receita:item?item.receita:0,qtd:item?item.qtd:0};
   }):[]).sort((a,b)=>a.mes.localeCompare(b.mes));
 
-  document.getElementById('modalTabs').innerHTML='<div class="tab active" id="tabChart" onclick="switchModalTab(\\'chart\\')">Gráfico</div><div class="tab" id="tabInfo" onclick="switchModalTab(\\'info\\')">Detalhes</div>';
+  document.getElementById('modalTabs').innerHTML='<div class="tab active" id="tabChart" onclick="switchModalTab(\'chart\')">Gráfico</div><div class="tab" id="tabInfo" onclick="switchModalTab(\'info\')">Detalhes</div>';
 
   const renderChart=()=>{
     document.getElementById('modalTabContent').innerHTML='<canvas id="modalChart" height="90"></canvas>';

@@ -184,17 +184,17 @@ function initDashboard(){
   const PS=100;
 
   // KPIs do Dashboard com a mesma lógica da página Vendas
-  function updateDashKpis(list){
-    const receita = list.reduce((s,p)=>s+(p.receita||0),0);
-    const qtd     = list.reduce((s,p)=>s+(p.qtd||0),0);
-    const skus    = list.length;
-    const ticket  = qtd > 0 ? receita / qtd : 0;
+function updateVKpis(list) {
+  const rec  = list.reduce((s, p) => s + (p.receita || 0), 0);
+  const qtd  = list.reduce((s, p) => s + (p.qtd || 0), 0);
+  const tick = qtd > 0 ? rec / qtd : 0;
+  const skus = list.length;
 
-    document.getElementById('kpiReceita').textContent = fmt(receita);
-    document.getElementById('kpiPedidos').textContent = fmtN(qtd) + ' un';
-    document.getElementById('kpiTicket').textContent  = fmt(ticket);
-    document.getElementById('kpiSkus').textContent    = fmtN(skus);
-  }
+  document.getElementById('vKpiReceita').textContent = fmt(rec);
+  document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
+  document.getElementById('vKpiTicket').textContent  = fmt(tick);
+  document.getElementById('vKpiSkus').textContent    = fmtN(skus);
+}
 
   const buildPag=(id,total,pg,onGo)=>{
     const el=document.getElementById(id);

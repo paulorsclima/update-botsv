@@ -44,14 +44,19 @@ function initVendas() {
   let sortCol = 'receita', sortDir = -1, curPage = 0;
   const PS = 100;
 
-  // ── KPIs
+  // ── KPIs (corrigido: ticket médio vem de DATA.kpis.ticket = Receita total / Total de pedidos)
   function updateVKpis(list) {
     const rec  = list.reduce((s, p) => s + (p.receita || 0), 0);
     const qtd  = list.reduce((s, p) => s + (p.qtd || 0), 0);
-    const tick = list.length > 0 ? rec / list.length : 0;
+
+    // Ticket médio global calculado no Apps Script (receitaTotal / pedidosTotal)
+    const ticketMedio = DATA.kpis && typeof DATA.kpis.ticket === 'number'
+      ? DATA.kpis.ticket
+      : 0;
+
     document.getElementById('vKpiReceita').textContent = fmt(rec);
     document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
-    document.getElementById('vKpiTicket').textContent  = fmt(tick);
+    document.getElementById('vKpiTicket').textContent  = fmt(ticketMedio);
     document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
   }
 
@@ -123,7 +128,6 @@ function initVendas() {
 
     const ticket = p => p.qtd > 0 ? fmt(p.receita / p.qtd) : '—';
 
-    // ── ALTERADO: map agora usa arrow function com corpo para calcular trend
     document.getElementById('vendasBody').innerHTML = slice.map((p, i) => {
       const trend = (p.kpi_trend != null && p.kpi_trend !== '')
         ? Number(p.kpi_trend)
@@ -184,7 +188,6 @@ function initVendas() {
         (DATA.vendasPorMes[k] || []).forEach(x => {
           if (!skuMap[x.SKU]) {
             const base = DATA.produtos.find(p => p.SKU === x.SKU) || {};
-            // ── ALTERADO: preserva campos de tendência ao montar objeto filtrado
             skuMap[x.SKU] = {
               ...base,
               receita: 0,

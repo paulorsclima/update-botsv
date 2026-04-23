@@ -53,7 +53,7 @@ function initVendas() {
     document.getElementById('vKpiReceita').textContent = fmt(rec);
     document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
     document.getElementById('vKpiTicket').textContent  = fmt(tick);
-    document.getElementById('vKpiPedidos').textContent = fmtN(DATA.kpis.pedidos);
+    document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
   }
 
   // ── Gráfico linha

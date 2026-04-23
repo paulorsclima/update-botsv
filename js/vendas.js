@@ -147,12 +147,10 @@ function initVendas() {
         ? `<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>`
         : `<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>`;
 
-    // ✅ Ticket médio da tabela: receita / pedidos do SKU (não por unidade)
+    // ✅ Ticket médio da tabela: receita / pedidos do SKU
     const ticket = p => {
       const ped = p.pedidos != null ? p.pedidos : 0;
-      if (ped > 0) return fmt(p.receita / ped);
-      // fallback sem filtro: usa qtd (comportamento anterior)
-      return p.qtd > 0 ? fmt(p.receita / p.qtd) : '—';
+      return ped > 0 ? fmt(p.receita / ped) : '—';
     };
 
     document.getElementById('vendasBody').innerHTML = slice.map((p, i) => {
@@ -218,7 +216,7 @@ function initVendas() {
               ...base,
               receita: 0,
               qtd: 0,
-              pedidos: 0,           // ← NOVO: acumula pedidos do período
+              pedidos: 0,
               qtd30:     base.qtd30     || 0,
               qtd60:     base.qtd60     || 0,
               qtd90:     base.qtd90     || 0,
@@ -227,7 +225,7 @@ function initVendas() {
           }
           skuMap[x.SKU].receita += x.receita  || 0;
           skuMap[x.SKU].qtd    += x.qtd       || 0;
-          skuMap[x.SKU].pedidos+= x.pedidos   || 0; // ← NOVO
+          skuMap[x.SKU].pedidos+= x.pedidos   || 0;
         });
       });
       current = Object.values(skuMap);

@@ -618,9 +618,6 @@ window.trendCell = function(trend){
   let _estPage = 0;
   let _estDadosFiltrados = [];
 
-  let estSortCol = 'receita';
-  let estSortDir = -1;
-
   function fmtN(v){ return (v||0).toLocaleString('pt-BR'); }
   function fmt(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
@@ -642,56 +639,6 @@ window.trendCell = function(trend){
     }
     return window.calcTrend(r.qtd30, r.qtd60, r.qtd90);
   }
-
-  function getEstoqueVal(r, col) {
-    switch (col) {
-      case 'SKU':      return (r.SKU || '').toString();
-      case 'desc':     return (r.desc || '').toString();
-      case 'curva':    return (r.curva || '').toString();
-      case 'estoque':  return Number(r.estoque || 0);
-      case 'status':   return (r.status || '').toString();
-      case 'qtd30':    return Number(r.qtd30 || 0);
-      case 'trend':    return Number(resolveTrend(r) || 0);
-      case 'sugestao': return Number(r.sugestao || 0);
-      case 'receita':  return Number(r.receita || 0);
-      default:         return '';
-    }
-  }
-
-  function applyEstoqueSort() {
-    _estDadosFiltrados.sort((a, b) => {
-      const va = getEstoqueVal(a, estSortCol);
-      const vb = getEstoqueVal(b, estSortCol);
-      if (typeof va === 'number' && typeof vb === 'number') {
-        return estSortDir * (va - vb);
-      }
-      return estSortDir * va.toString().localeCompare(vb.toString(), 'pt-BR');
-    });
-    renderEstoquePage(0);
-  }
-
-  function updateEstoqueSortIcons() {
-    document.querySelectorAll('[id^="esort-"]').forEach(el => {
-      el.textContent = '↕';
-      el.classList.remove('asc', 'desc');
-    });
-    const ico = document.getElementById('esort-' + estSortCol);
-    if (ico) {
-      ico.textContent = estSortDir === 1 ? '↑' : '↓';
-      ico.classList.add(estSortDir === 1 ? 'asc' : 'desc');
-    }
-  }
-
-  window.sortEstoque = function(col) {
-    if (estSortCol === col) {
-      estSortDir *= -1;
-    } else {
-      estSortCol = col;
-      estSortDir = -1;
-    }
-    updateEstoqueSortIcons();
-    applyEstoqueSort();
-  };
 
   window._filtroEstoque = function(){
     const q      = (document.getElementById('estSearch').value || '').toLowerCase();
@@ -718,7 +665,7 @@ window.trendCell = function(trend){
       data.sort((a,b) => (a.cobertura||0) - (b.cobertura||0));
 
     _estDadosFiltrados = data;
-    applyEstoqueSort();
+    renderEstoquePage(0);
   };
 
   function buildEstoquePag(total, pg){
@@ -790,7 +737,6 @@ window.trendCell = function(trend){
   window.renderEstoque = function(){
     _estDadosFiltrados = ESTOQUE_DATA || [];
     renderEstoqueKpis();
-    updateEstoqueSortIcons();
     renderEstoquePage(0);
   };
 })();

@@ -55,23 +55,30 @@ function initVendas() {
     let ticketMedio = 0;
 
     if (!ano && !mes) {
-      // Sem filtro: usa valor exato do Apps Script (receita total / pedidos total)
+      // Sem filtro: valor exato do Apps Script
       ticketMedio = DATA.kpis && typeof DATA.kpis.ticket === 'number'
         ? DATA.kpis.ticket
         : 0;
     } else {
-      // Com filtro: soma pedidos dos meses filtrados via DATA.monthly
+      // Com filtro: receita do período filtrado via DATA.monthly
       const chavesFiltradas = todasChaves.filter(k => {
         const [y, m] = k.split('-');
         if (ano && y !== ano) return false;
         if (mes && m !== mes) return false;
         return true;
       });
-      const pedidosFiltrados = (DATA.monthly || [])
-        .filter(m => chavesFiltradas.includes(m.mes))
-        .reduce((s, m) => s + (m.pedidos || 0), 0);
 
-      ticketMedio = pedidosFiltrados > 0 ? rec / pedidosFiltrados : 0;
+      const receitaPeriodo = (DATA.monthly || [])
+        .filter(m => chavesFiltradas.includes(m.mes))
+        .reduce((s, m) => s + (m.receita || 0), 0);
+
+      const receitaTotal = (DATA.monthly || [])
+        .reduce((s, m) => s + (m.receita || 0), 0);
+
+      const proporcao = receitaTotal > 0 ? receitaPeriodo / receitaTotal : 0;
+      const pedidosEstimados = Math.round((DATA.kpis.pedidos || 0) * proporcao);
+
+      ticketMedio = pedidosEstimados > 0 ? rec / pedidosEstimados : 0;
     }
 
     document.getElementById('vKpiReceita').textContent = fmt(rec);

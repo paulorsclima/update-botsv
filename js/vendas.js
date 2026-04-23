@@ -44,19 +44,41 @@ function initVendas() {
   let sortCol = 'receita', sortDir = -1, curPage = 0;
   const PS = 100;
 
-  // ── KPIs (corrigido: ticket médio vem de DATA.kpis.ticket = Receita total / Total de pedidos)
-function updateVKpis(list) {
-  const rec = list.reduce((s, p) => s + (p.receita || 0), 0);
-  const qtd = list.reduce((s, p) => s + (p.qtd    || 0), 0);
+  // ── KPIs
+  function updateVKpis(list) {
+    const rec = list.reduce((s, p) => s + (p.receita || 0), 0);
+    const qtd = list.reduce((s, p) => s + (p.qtd    || 0), 0);
 
-  // ✅ CORREÇÃO — ticket médio calculado sobre o período filtrado
-  const ticketMedio = qtd > 0 ? rec / qtd : 0;
+    const ano = selAno ? selAno.value : '';
+    const mes = selMes ? selMes.value : '';
 
-  document.getElementById('vKpiReceita').textContent = fmt(rec);
-  document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
-  document.getElementById('vKpiTicket').textContent  = fmt(ticketMedio);
-  document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
-}
+    let ticketMedio = 0;
+
+    if (!ano && !mes) {
+      // Sem filtro: usa valor exato do Apps Script (receita total / pedidos total)
+      ticketMedio = DATA.kpis && typeof DATA.kpis.ticket === 'number'
+        ? DATA.kpis.ticket
+        : 0;
+    } else {
+      // Com filtro: soma pedidos dos meses filtrados via DATA.monthly
+      const chavesFiltradas = todasChaves.filter(k => {
+        const [y, m] = k.split('-');
+        if (ano && y !== ano) return false;
+        if (mes && m !== mes) return false;
+        return true;
+      });
+      const pedidosFiltrados = (DATA.monthly || [])
+        .filter(m => chavesFiltradas.includes(m.mes))
+        .reduce((s, m) => s + (m.pedidos || 0), 0);
+
+      ticketMedio = pedidosFiltrados > 0 ? rec / pedidosFiltrados : 0;
+    }
+
+    document.getElementById('vKpiReceita').textContent = fmt(rec);
+    document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
+    document.getElementById('vKpiTicket').textContent  = ticketMedio > 0 ? fmt(ticketMedio) : '—';
+    document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
+  }
 
   // ── Gráfico linha
   let vendasLineChartInst = null;

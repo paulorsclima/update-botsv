@@ -45,15 +45,18 @@ function initVendas() {
   const PS = 100;
 
   // ── KPIs
-  function updateVKpis(list) {
-    const rec  = list.reduce((s, p) => s + (p.receita || 0), 0);
-    const qtd  = list.reduce((s, p) => s + (p.qtd || 0), 0);
-    const tick = list.length > 0 ? rec / list.length : 0;
-    document.getElementById('vKpiReceita').textContent = fmt(rec);
-    document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
-    document.getElementById('vKpiTicket').textContent  = fmt(tick);
-    document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
-  }
+function updateVKpis(list) {
+  const rec  = list.reduce((s, p) => s + (p.receita || 0), 0);
+  const qtd  = list.reduce((s, p) => s + (p.qtd || 0), 0);
+  const tick = qtd > 0 ? rec / qtd : 0;  // ← Receita / Qtd de itens vendidos
+  //                      ^^^
+  //              qtd = total de unidades vendidas pelos SKUs filtrados
+
+  document.getElementById('vKpiReceita').textContent = fmt(rec);
+  document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
+  document.getElementById('vKpiTicket').textContent  = fmt(tick);
+  document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
+}
 
   // ── Gráfico linha
   let vendasLineChartInst = null;

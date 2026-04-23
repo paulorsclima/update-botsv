@@ -60,7 +60,7 @@ function initVendas() {
         ? DATA.kpis.ticket
         : 0;
     } else {
-      // Com filtro: receita do período filtrado via DATA.monthly
+      // Com filtro: usa pedidos reais de DATA.monthly (agora disponível)
       const chavesFiltradas = todasChaves.filter(k => {
         const [y, m] = k.split('-');
         if (ano && y !== ano) return false;
@@ -68,17 +68,11 @@ function initVendas() {
         return true;
       });
 
-      const receitaPeriodo = (DATA.monthly || [])
+      const pedidosFiltrados = (DATA.monthly || [])
         .filter(m => chavesFiltradas.includes(m.mes))
-        .reduce((s, m) => s + (m.receita || 0), 0);
+        .reduce((s, m) => s + (m.pedidos || 0), 0);
 
-      const receitaTotal = (DATA.monthly || [])
-        .reduce((s, m) => s + (m.receita || 0), 0);
-
-      const proporcao = receitaTotal > 0 ? receitaPeriodo / receitaTotal : 0;
-      const pedidosEstimados = Math.round((DATA.kpis.pedidos || 0) * proporcao);
-
-      ticketMedio = pedidosEstimados > 0 ? rec / pedidosEstimados : 0;
+      ticketMedio = pedidosFiltrados > 0 ? rec / pedidosFiltrados : 0;
     }
 
     document.getElementById('vKpiReceita').textContent = fmt(rec);
@@ -153,7 +147,13 @@ function initVendas() {
         ? `<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>`
         : `<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>`;
 
-    const ticket = p => p.qtd > 0 ? fmt(p.receita / p.qtd) : '—';
+    // ✅ Ticket médio da tabela: receita / pedidos do SKU (não por unidade)
+    const ticket = p => {
+      const ped = p.pedidos != null ? p.pedidos : 0;
+      if (ped > 0) return fmt(p.receita / ped);
+      // fallback sem filtro: usa qtd (comportamento anterior)
+      return p.qtd > 0 ? fmt(p.receita / p.qtd) : '—';
+    };
 
     document.getElementById('vendasBody').innerHTML = slice.map((p, i) => {
       const trend = (p.kpi_trend != null && p.kpi_trend !== '')
@@ -202,7 +202,6 @@ function initVendas() {
     const mes   = document.getElementById('vMes')?.value   || '';
     const curva = document.getElementById('vCurva')?.value || '';
 
-    // Se filtro por período: recalcula receita/qtd a partir de vendasPorMes
     if (ano || mes) {
       const chaves = todasChaves.filter(k => {
         const [y, m] = k.split('-');
@@ -219,14 +218,16 @@ function initVendas() {
               ...base,
               receita: 0,
               qtd: 0,
+              pedidos: 0,           // ← NOVO: acumula pedidos do período
               qtd30:     base.qtd30     || 0,
               qtd60:     base.qtd60     || 0,
               qtd90:     base.qtd90     || 0,
               kpi_trend: base.kpi_trend ?? null
             };
           }
-          skuMap[x.SKU].receita += x.receita || 0;
-          skuMap[x.SKU].qtd    += x.qtd    || 0;
+          skuMap[x.SKU].receita += x.receita  || 0;
+          skuMap[x.SKU].qtd    += x.qtd       || 0;
+          skuMap[x.SKU].pedidos+= x.pedidos   || 0; // ← NOVO
         });
       });
       current = Object.values(skuMap);

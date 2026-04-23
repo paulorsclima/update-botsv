@@ -168,11 +168,23 @@ function initVendas() {
         </tr>`;
     }).join('');
 
-    document.getElementById('vendasTableCount').textContent = current.length + ' produtos';
+document.getElementById('vendasTableCount').textContent = current.length + ' produtos';
     window._renderVendas = renderVendas;
     const fn = `(function(p){window._renderVendas(p);})`;
     buildVPag('vendasPagTop', current.length, curPage, fn);
     buildVPag('vendasPagBot', current.length, curPage, fn);
+
+    // ✅ CORREÇÃO: popula os dados para o modal de exportação de vendas
+    window._vendasAgregadas = current.map(p => ({
+      SKU:     p.SKU,
+      produto: p.produto    || '',
+      curva:   p.curva      || 'C',
+      qtd:     p.qtd        || 0,
+      receita: p.receita    || 0,
+      ticket:  p.qtd > 0 ? p.receita / p.qtd : 0,
+      vd:      p.vd         || 0
+    }));
+
     updateVKpis(current);
     buildVendasLineChart(current);
     buildVendasCurvaChart(current);

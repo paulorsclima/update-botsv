@@ -46,15 +46,13 @@ function initVendas() {
 
   // ── KPIs
   function updateVKpis(list) {
-    const rec     = list.reduce((s, p) => s + (p.receita || 0), 0);
-    const qtd     = list.reduce((s, p) => s + (p.qtd || 0), 0);
-    const pedidos = list.reduce((s, p) => s + (p.pedidos || 0), 0); // ← NOVO
-    const tick    = qtd > 0 ? rec / qtd : 0;
-    document.getElementById('vKpiReceita').textContent  = fmt(rec);
-    document.getElementById('vKpiQtd').textContent      = fmtN(qtd) + ' un';
-    document.getElementById('vKpiTicket').textContent   = fmt(tick);
-    document.getElementById('vKpiSkus').textContent     = fmtN(list.length);
-    document.getElementById('vKpiPedidos').textContent  = fmtN(pedidos); // ← NOVO
+    const rec  = list.reduce((s, p) => s + (p.receita || 0), 0);
+    const qtd  = list.reduce((s, p) => s + (p.qtd || 0), 0);
+    const tick = list.length > 0 ? rec / list.length : 0;
+    document.getElementById('vKpiReceita').textContent = fmt(rec);
+    document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
+    document.getElementById('vKpiTicket').textContent  = fmt(tick);
+    document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
   }
 
   // ── Gráfico linha
@@ -125,6 +123,7 @@ function initVendas() {
 
     const ticket = p => p.qtd > 0 ? fmt(p.receita / p.qtd) : '—';
 
+    // ── ALTERADO: map agora usa arrow function com corpo para calcular trend
     document.getElementById('vendasBody').innerHTML = slice.map((p, i) => {
       const trend = (p.kpi_trend != null && p.kpi_trend !== '')
         ? Number(p.kpi_trend)
@@ -172,6 +171,7 @@ function initVendas() {
     const mes   = document.getElementById('vMes')?.value   || '';
     const curva = document.getElementById('vCurva')?.value || '';
 
+    // Se filtro por período: recalcula receita/qtd a partir de vendasPorMes
     if (ano || mes) {
       const chaves = todasChaves.filter(k => {
         const [y, m] = k.split('-');
@@ -184,20 +184,19 @@ function initVendas() {
         (DATA.vendasPorMes[k] || []).forEach(x => {
           if (!skuMap[x.SKU]) {
             const base = DATA.produtos.find(p => p.SKU === x.SKU) || {};
+            // ── ALTERADO: preserva campos de tendência ao montar objeto filtrado
             skuMap[x.SKU] = {
               ...base,
-              receita:   0,
-              qtd:       0,
-              pedidos:   0,         // ← NOVO
+              receita: 0,
+              qtd: 0,
               qtd30:     base.qtd30     || 0,
               qtd60:     base.qtd60     || 0,
               qtd90:     base.qtd90     || 0,
               kpi_trend: base.kpi_trend ?? null
             };
           }
-          skuMap[x.SKU].receita  += x.receita  || 0;
-          skuMap[x.SKU].qtd      += x.qtd      || 0;
-          skuMap[x.SKU].pedidos  += x.pedidos  || 0; // ← NOVO
+          skuMap[x.SKU].receita += x.receita || 0;
+          skuMap[x.SKU].qtd    += x.qtd    || 0;
         });
       });
       current = Object.values(skuMap);

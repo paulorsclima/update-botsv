@@ -1,8 +1,6 @@
 // ============================================================
 // app.js — loadData, Dashboard, Modal, Insights, Rupturas, Projeções
 // Depende de: config.js (carregado antes)
-// Ajuste: KPIs do Dashboard passam a seguir a lógica dinâmica
-// da página Vendas, recalculando com base no array current.
 // ============================================================
 
 function fmt(v){return'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -74,6 +72,7 @@ async function loadData(){
     initDashboard();
     initVendas();
     renderInsights();
+    // ── renderEstoque() chama window.renderEstoque definida no HTML ──
     if(typeof window.renderEstoque === 'function') window.renderEstoque();
     if(RUPTURAS_DATA.length)renderRupturas(RUPTURAS_DATA);
 
@@ -84,7 +83,7 @@ async function loadData(){
   }
 }
 
-// ---- DASHBOARD ----
+// ---- KPIs DASHBOARD ----
 function initDashboard(){
   const totalSkus = DATA.kpis.skus !== undefined ? DATA.kpis.skus : DATA.produtos.length;
   document.getElementById('kpiReceita').textContent   =fmt(DATA.kpis.receita);
@@ -109,14 +108,9 @@ function initDashboard(){
     const ns=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     return ns[parseInt(mo)]+'/'+y.slice(2);
   });
-
   if(DATA.monthly.length){
     const first=DATA.monthly[0].mes,last=DATA.monthly[DATA.monthly.length-1].mes;
-    const fmtM=m=>{
-      const[y,mo]=m.split('-');
-      const ns=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-      return ns[parseInt(mo)]+'/'+y;
-    };
+    const fmtM=m=>{const[y,mo]=m.split('-');const ns=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];return ns[parseInt(mo)]+'/'+y;};
     document.getElementById('dashSubtitle').textContent=fmtM(first)+' – '+fmtM(last);
   }
 
@@ -124,24 +118,15 @@ function initDashboard(){
   const chartCfg=(type)=>({
     type,
     data:{labels:months,datasets:[{
-      label:'Receita',
-      data:receipts,
-      borderColor:'#6366f1',
-      backgroundColor:type==='line'?'rgba(99,102,241,0.08)':'rgba(99,102,241,0.6)',
-      borderWidth:2.5,
-      pointRadius:4,
-      pointBackgroundColor:'#6366f1',
-      fill:type==='line',
-      tension:0.35
+      label:'Receita',data:receipts,
+      borderColor:'#6366f1',backgroundColor:type==='line'?'rgba(99,102,241,0.08)':'rgba(99,102,241,0.6)',
+      borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#6366f1',fill:type==='line',tension:0.35
     }]},
-    options:{
-      responsive:true,
-      plugins:{legend:{display:false}},
+    options:{responsive:true,plugins:{legend:{display:false}},
       scales:{
         x:{ticks:{color:'#4a5568'},grid:{color:'#1a2030'}},
         y:{ticks:{color:'#4a5568',callback:v=>'R$'+Math.round(v/1000)+'k'},grid:{color:'#1a2030'}}
-      }
-    }
+      }}
   });
 
   let mainChart=null;
@@ -150,7 +135,6 @@ function initDashboard(){
     mainChart=new Chart(document.getElementById('mainChart').getContext('2d'),chartCfg(type));
   };
   buildMain('line');
-
   window.switchChart=(type)=>{
     buildMain(type);
     document.querySelectorAll('.chart-type-btn').forEach(b=>b.classList.remove('active'));
@@ -160,41 +144,16 @@ function initDashboard(){
   const recA=DATA.produtos.filter(p=>p.curva==='A').reduce((s,p)=>s+(p.receita||0),0);
   const recB=DATA.produtos.filter(p=>p.curva==='B').reduce((s,p)=>s+(p.receita||0),0);
   const recC=DATA.produtos.filter(p=>p.curva==='C').reduce((s,p)=>s+(p.receita||0),0);
-
   new Chart(document.getElementById('abcChart').getContext('2d'),{
     type:'doughnut',
-    data:{
-      labels:['Curva A','Curva B','Curva C'],
-      datasets:[{
-        data:[recA,recB,recC],
-        backgroundColor:['#34d399','#84cc16','#4a5568'],
-        borderWidth:0
-      }]
-    },
-    options:{
-      responsive:true,
-      cutout:'62%',
-      plugins:{legend:{position:'bottom',labels:{color:'#8892a4',font:{size:11},padding:10}}}
-    }
+    data:{labels:['Curva A','Curva B','Curva C'],datasets:[{data:[recA,recB,recC],backgroundColor:['#34d399','#84cc16','#4a5568'],borderWidth:0}]},
+    options:{responsive:true,cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:'#8892a4',font:{size:11},padding:10}}}}
   });
 
   let allProds=DATA.produtos.slice();
   let current=allProds.slice();
   let sortCol='receita',sortDir=-1,curPage=0;
   const PS=100;
-
-  // KPIs do Dashboard com a mesma lógica da página Vendas
-  function updateDashKpis(list){
-    const receita = list.reduce((s,p)=>s+(p.receita||0),0);
-    const qtd     = list.reduce((s,p)=>s+(p.qtd||0),0);
-    const skus    = list.length;
-    const ticket  = qtd > 0 ? receita / qtd : 0;
-
-    document.getElementById('kpiReceita').textContent = fmt(receita);
-    document.getElementById('kpiPedidos').textContent = fmtN(qtd) + ' un';
-    document.getElementById('kpiTicket').textContent  = fmt(ticket);
-    document.getElementById('kpiSkus').textContent    = fmtN(skus);
-  }
 
   const buildPag=(id,total,pg,onGo)=>{
     const el=document.getElementById(id);
@@ -203,12 +162,7 @@ function initDashboard(){
     if(totalPages<=1){el.innerHTML='';return;}
     const s=pg*PS+1,e=Math.min((pg+1)*PS,total);
     let pages=[...Array(totalPages).keys()];
-    if(totalPages>7){
-      let st=Math.max(0,pg-3);
-      let en=Math.min(totalPages,st+7);
-      if(en-st<7)st=Math.max(0,en-7);
-      pages=pages.slice(st,en);
-    }
+    if(totalPages>7){let st=Math.max(0,pg-3);let en=Math.min(totalPages,st+7);if(en-st<7)st=Math.max(0,en-7);pages=pages.slice(st,en);}
     el.innerHTML=`<span style="font-size:12px;color:#4a5568;margin-right:6px;">${s}–${e} de ${total}</span>`
       +`<button class="page-btn${pg===0?' disabled':''}" onclick="(${onGo})(${pg-1})" ${pg===0?'disabled':''}>&#8249;</button>`
       +pages.map(p2=>`<button class="page-btn${p2===pg?' active':''}" onclick="(${onGo})(${p2})">${p2+1}</button>`).join('')
@@ -218,13 +172,9 @@ function initDashboard(){
   const render=(pg)=>{
     curPage=pg||0;
     const slice=current.slice(curPage*PS,(curPage+1)*PS);
-
-    const curvaSpan=c=>c==='A'
-      ? `<span class="kpi-badge" style="font-size:10px;background:#0d2618;color:#34d399;">A</span>`
-      : c==='B'
-        ? `<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>`
-        : `<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>`;
-
+    const curvaSpan=c=>c==='A'?`<span class="kpi-badge" style="font-size:10px;background:#0d2618;color:#34d399;">A</span>`
+      :c==='B'?`<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>`
+      :`<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>`;
     document.getElementById('prodBody').innerHTML=slice.map((p,i)=>`
       <tr onclick="openModal('${p.SKU}')">
         <td class="rank">${curPage*PS+i+1}</td>
@@ -238,12 +188,8 @@ function initDashboard(){
         <td>${fmtN(p.estoque||0)}</td>
         <td>${statusBadge(p)}</td>
       </tr>`).join('');
-
     document.getElementById('tableCountLabel').textContent=current.length+' produtos';
     document.getElementById('dashCountLabel').textContent=current.length+' produtos';
-
-    updateDashKpis(current);
-
     const fn=`(function(p){window._renderDash(p);})`;
     window._renderDash=render;
     buildPag('pagTop',current.length,curPage,fn);
@@ -251,17 +197,10 @@ function initDashboard(){
   };
 
   window.sortTable=(col)=>{
-    if(sortCol===col)sortDir*=-1;
-    else{sortCol=col;sortDir=-1;}
-    document.querySelectorAll('[id^="sort-"]').forEach(el=>{
-      el.textContent='↕';
-      el.classList.remove('asc','desc');
-    });
+    if(sortCol===col)sortDir*=-1; else{sortCol=col;sortDir=-1;}
+    document.querySelectorAll('[id^="sort-"]').forEach(el=>{el.textContent='↕';el.classList.remove('asc','desc');});
     const ico=document.getElementById('sort-'+col);
-    if(ico){
-      ico.textContent=sortDir===1?'↑':'↓';
-      ico.classList.add(sortDir===1?'asc':'desc');
-    }
+    if(ico){ico.textContent=sortDir===1?'↑':'↓';ico.classList.add(sortDir===1?'asc':'desc');}
     current.sort((a,b)=>compareVal(a,b,col,sortDir));
     render(0);
   };
@@ -405,7 +344,6 @@ function openModal(sku){
         scales:{x:{ticks:{color:'#4a5568'},grid:{color:'#1a2030'}},y:{ticks:{color:'#4a5568',callback:v=>'R$'+Math.round(v/1000)+'k'},grid:{color:'#1a2030'}}}}
     });
   };
-
   const renderInfo=()=>{
     document.getElementById('modalTabContent').innerHTML=`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">

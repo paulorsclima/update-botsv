@@ -45,20 +45,18 @@ function initVendas() {
   const PS = 100;
 
   // ── KPIs (corrigido: ticket médio vem de DATA.kpis.ticket = Receita total / Total de pedidos)
-  function updateVKpis(list) {
-    const rec  = list.reduce((s, p) => s + (p.receita || 0), 0);
-    const qtd  = list.reduce((s, p) => s + (p.qtd || 0), 0);
+function updateVKpis(list) {
+  const rec = list.reduce((s, p) => s + (p.receita || 0), 0);
+  const qtd = list.reduce((s, p) => s + (p.qtd    || 0), 0);
 
-    // Ticket médio global calculado no Apps Script (receitaTotal / pedidosTotal)
-    const ticketMedio = DATA.kpis && typeof DATA.kpis.ticket === 'number'
-      ? DATA.kpis.ticket
-      : 0;
+  // ✅ CORREÇÃO — ticket médio calculado sobre o período filtrado
+  const ticketMedio = qtd > 0 ? rec / qtd : 0;
 
-    document.getElementById('vKpiReceita').textContent = fmt(rec);
-    document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
-    document.getElementById('vKpiTicket').textContent  = fmt(ticketMedio);
-    document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
-  }
+  document.getElementById('vKpiReceita').textContent = fmt(rec);
+  document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
+  document.getElementById('vKpiTicket').textContent  = fmt(ticketMedio);
+  document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
+}
 
   // ── Gráfico linha
   let vendasLineChartInst = null;

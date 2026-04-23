@@ -44,46 +44,19 @@ function initVendas() {
   let sortCol = 'receita', sortDir = -1, curPage = 0;
   const PS = 100;
 
-  // ── KPIs
+  // ── KPIs (corrigido: ticket médio vem de DATA.kpis.ticket = Receita total / Total de pedidos)
   function updateVKpis(list) {
-    const rec = list.reduce((s, p) => s + (p.receita || 0), 0);
-    const qtd = list.reduce((s, p) => s + (p.qtd    || 0), 0);
+    const rec  = list.reduce((s, p) => s + (p.receita || 0), 0);
+    const qtd  = list.reduce((s, p) => s + (p.qtd || 0), 0);
 
-    const ano = selAno ? selAno.value : '';
-    const mes = selMes ? selMes.value : '';
-
-    let ticketMedio = 0;
-
-    if (!ano && !mes) {
-      // Sem filtro: valor exato do Apps Script
-      ticketMedio = DATA.kpis && typeof DATA.kpis.ticket === 'number'
-        ? DATA.kpis.ticket
-        : 0;
-    } else {
-      // Com filtro: receita do período filtrado via DATA.monthly
-      const chavesFiltradas = todasChaves.filter(k => {
-        const [y, m] = k.split('-');
-        if (ano && y !== ano) return false;
-        if (mes && m !== mes) return false;
-        return true;
-      });
-
-      const receitaPeriodo = (DATA.monthly || [])
-        .filter(m => chavesFiltradas.includes(m.mes))
-        .reduce((s, m) => s + (m.receita || 0), 0);
-
-      const receitaTotal = (DATA.monthly || [])
-        .reduce((s, m) => s + (m.receita || 0), 0);
-
-      const proporcao = receitaTotal > 0 ? receitaPeriodo / receitaTotal : 0;
-      const pedidosEstimados = Math.round((DATA.kpis.pedidos || 0) * proporcao);
-
-      ticketMedio = pedidosEstimados > 0 ? rec / pedidosEstimados : 0;
-    }
+    // Ticket médio global calculado no Apps Script (receitaTotal / pedidosTotal)
+    const ticketMedio = DATA.kpis && typeof DATA.kpis.ticket === 'number'
+      ? DATA.kpis.ticket
+      : 0;
 
     document.getElementById('vKpiReceita').textContent = fmt(rec);
     document.getElementById('vKpiQtd').textContent     = fmtN(qtd) + ' un';
-    document.getElementById('vKpiTicket').textContent  = ticketMedio > 0 ? fmt(ticketMedio) : '—';
+    document.getElementById('vKpiTicket').textContent  = fmt(ticketMedio);
     document.getElementById('vKpiSkus').textContent    = fmtN(list.length);
   }
 

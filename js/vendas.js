@@ -7,7 +7,6 @@ function initVendas() {
   const prods = DATA.produtos.slice();
   const MESES_NOMES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-  // ── Popula filtros de ano e mês dinamicamente a partir dos dados da planilha
   const todasChaves = Object.keys(DATA.vendasPorMes || {}).sort();
   const anos  = [...new Set(todasChaves.map(k => k.split('-')[0]))].sort();
   const meses = [...new Set(todasChaves.map(k => k.split('-')[1]))].sort();
@@ -32,14 +31,12 @@ function initVendas() {
     });
   }
 
-  // ── Subtítulo
   if (todasChaves.length) {
     const fmtM = k => { const [y, mo] = k.split('-'); return MESES_NOMES[parseInt(mo)] + '/' + y; };
     const sub = document.getElementById('vendasSubtitle');
     if (sub) sub.textContent = fmtM(todasChaves[0]) + ' – ' + fmtM(todasChaves[todasChaves.length - 1]);
   }
 
-  // ── Estado
   let current = prods.slice();
   let sortCol = 'receita', sortDir = -1, curPage = 0;
   const PS = 100;
@@ -55,12 +52,12 @@ function initVendas() {
     let ticketMedio = 0;
 
     if (!ano && !mes) {
-      // Sem filtro: valor exato do Apps Script
+      // Sem filtro: valor exato do Apps Script (receita total / pedidos reais)
       ticketMedio = DATA.kpis && typeof DATA.kpis.ticket === 'number'
         ? DATA.kpis.ticket
         : 0;
     } else {
-      // Com filtro: usa pedidos reais de DATA.monthly (agora disponível)
+      // Com filtro: pedidos reais por mês via DATA.monthly (campo pedidos disponível)
       const chavesFiltradas = todasChaves.filter(k => {
         const [y, m] = k.split('-');
         if (ano && y !== ano) return false;
@@ -84,8 +81,8 @@ function initVendas() {
   // ── Gráfico linha
   let vendasLineChartInst = null;
   function buildVendasLineChart(list) {
-    const ano   = selAno ? selAno.value : '';
-    const mes   = selMes ? selMes.value : '';
+    const ano  = selAno ? selAno.value : '';
+    const mes  = selMes ? selMes.value : '';
     const chaves = todasChaves.filter(k => {
       const [y, m] = k.split('-');
       if (ano && y !== ano) return false;
@@ -147,11 +144,10 @@ function initVendas() {
         ? `<span class="kpi-badge" style="font-size:10px;background:#1a2f0d;color:#84cc16;">B</span>`
         : `<span class="kpi-badge" style="font-size:10px;background:#1e2535;color:#8892a4;">C</span>`;
 
-    // ✅ Ticket médio da tabela: receita / pedidos do SKU (não por unidade)
+    // Ticket médio da tabela: receita / pedidos do SKU no período
     const ticket = p => {
       const ped = p.pedidos != null ? p.pedidos : 0;
       if (ped > 0) return fmt(p.receita / ped);
-      // fallback sem filtro: usa qtd (comportamento anterior)
       return p.qtd > 0 ? fmt(p.receita / p.qtd) : '—';
     };
 
@@ -218,7 +214,7 @@ function initVendas() {
               ...base,
               receita: 0,
               qtd: 0,
-              pedidos: 0,           // ← NOVO: acumula pedidos do período
+              pedidos: 0,           // acumula pedidos do SKU no período
               qtd30:     base.qtd30     || 0,
               qtd60:     base.qtd60     || 0,
               qtd90:     base.qtd90     || 0,
@@ -227,7 +223,7 @@ function initVendas() {
           }
           skuMap[x.SKU].receita += x.receita  || 0;
           skuMap[x.SKU].qtd    += x.qtd       || 0;
-          skuMap[x.SKU].pedidos+= x.pedidos   || 0; // ← NOVO
+          skuMap[x.SKU].pedidos += x.pedidos  || 0; // vem do Apps Script
         });
       });
       current = Object.values(skuMap);

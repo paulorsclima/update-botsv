@@ -100,7 +100,7 @@
     const hoje = new Date().toLocaleDateString('pt-BR');
 
     // Cabeçalho das colunas
-    const header = 'SKU | PRODUTO | CURVA | QUANTIDADE VENDIDA | RECEITA | TICKET MEDIO | VENDA DIA | COBERTURA';
+    const header = 'SKU | PRODUTO | CURVA | QUANTIDADE VENDIDA | RECEITA | TICKET MEDIO | VENDA DIA | COBERTURA | ESTOQUE';
 
     const linhas = selecionados.map(sku => {
       const r = (window._vendasAgregadas || []).find(x => x.SKU === sku);
@@ -116,7 +116,8 @@
         fmt(r.receita      || 0),
         fmt(r.ticket       || 0),
         (r.vd              || 0).toFixed(1),
-        cobertura
+        cobertura,
+        fmtN(r.estoque     || 0)
       ].join(' | ');
     }).filter(Boolean);
 

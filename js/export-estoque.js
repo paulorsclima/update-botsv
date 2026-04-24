@@ -109,16 +109,44 @@
       return;
     }
     const hoje = new Date().toLocaleDateString('pt-BR');
+
+    // Cabeçalho das colunas
+    const header = 'SKU | Descrição | Curva | Estoque | Status | Venda | 30d | Tendência | Sugestão | Receita';
+
     const linhas = selecionados.map(sku => {
       const r = (ESTOQUE_DATA || []).find(x => x.SKU === sku);
       if(!r) return '';
-      return `SKU: ${r.SKU} | ${r.desc||''} | Sugestão: ${fmtN(r.sugestao||0)} un | Estoque: ${fmtN(r.estoque||0)} | Status: ${r.status||'OK'}`;
+
+      // Tendência: baseada na cobertura vs média esperada (30 dias)
+      const cobertura = r.cobertura || 0;
+      const tendencia = cobertura >= 30 ? '▲ Alta' : cobertura >= 15 ? '→ Estável' : '▼ Baixa';
+
+      // Receita estimada: sugestão × ticket médio (se disponível) ou campo direto
+      const receita = r.receita
+        ? 'R$ ' + (r.receita).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})
+        : '-';
+
+      return [
+        r.SKU              || '-',
+        r.desc             || '-',
+        r.curva            || 'C',
+        fmtN(r.estoque     || 0),
+        r.status           || 'OK',
+        cobertura + ' dias',
+        fmtN(r.qtd30       || 0),
+        tendencia,
+        fmtN(r.sugestao    || 0),
+        receita
+      ].join(' | ');
     }).filter(Boolean);
+
     document.getElementById('exportPreview').value =
       `Pedido ao Fornecedor — ${hoje}\n` +
-      `${'─'.repeat(60)}\n` +
+      `${'─'.repeat(80)}\n` +
+      header + '\n' +
+      `${'─'.repeat(80)}\n` +
       linhas.join('\n') +
-      `\n${'─'.repeat(60)}\n` +
+      `\n${'─'.repeat(80)}\n` +
       `Total: ${selecionados.length} produto(s)`;
   }
 

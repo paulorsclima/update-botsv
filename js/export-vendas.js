@@ -98,13 +98,32 @@
       return;
     }
     const hoje = new Date().toLocaleDateString('pt-BR');
+
+    // Cabeçalho das colunas
+    const header = 'SKU | PRODUTO | CURVA | QUANTIDADE VENDIDA | RECEITA | TICKET MEDIO | VENDA DIA | COBERTURA';
+
     const linhas = selecionados.map(sku => {
       const r = (window._vendasAgregadas || []).find(x => x.SKU === sku);
       if(!r) return '';
-      return `SKU: ${r.SKU} | ${r.produto||''} | Qtd: ${fmtN(r.qtd||0)} | Receita: ${fmt(r.receita||0)} | Ticket: ${fmt(r.ticket||0)}`;
+      const cobertura = (r.vd && r.vd > 0)
+        ? Math.round((r.estoque || 0) / r.vd) + ' dias'
+        : '-';
+      return [
+        r.SKU              || '-',
+        r.produto          || '-',
+        r.curva            || 'C',
+        fmtN(r.qtd         || 0),
+        fmt(r.receita      || 0),
+        fmt(r.ticket       || 0),
+        (r.vd              || 0).toFixed(1),
+        cobertura
+      ].join(' | ');
     }).filter(Boolean);
+
     document.getElementById('exportVPreview').value =
       `Relatório de Vendas — ${hoje}\n` +
+      `${'─'.repeat(60)}\n` +
+      header + '\n' +
       `${'─'.repeat(60)}\n` +
       linhas.join('\n') +
       `\n${'─'.repeat(60)}\n` +
